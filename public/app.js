@@ -241,6 +241,19 @@
     }
   }
 
+  /**
+   * The loading state of the one button that has a wait behind it. It used to
+   * write into a hint element that the paragraph purge deleted, which threw and
+   * left the button disabled with nothing happening: the flow was dead and no
+   * measurement of the page could see it, because nothing had been clicked.
+   */
+  function expandBusy (on) {
+    var b = $('do-expand')
+    b.disabled = on || !st.writer.available
+    b.innerHTML = '<svg class="icon"><use href="#i-wand"/></svg> ' +
+      (on ? 'Writing it' : 'Write the sheet')
+  }
+
   /** Adds or removes one preset word from the caption. */
   function toggleWord (word) {
     var box = $('caption')
@@ -254,12 +267,36 @@
     markPresets()
   }
 
+  /**
+   * Genre, mood and voice are one-of. A row of chips for a one-of choice is a
+   * radio group drawn as a wall, so they are selects, and picking one replaces
+   * whatever word of that group was in the caption.
+   */
+  function setOneWord (group, word) {
+    var box = $('caption')
+    var lower = group.map(function (w) { return w.toLowerCase() })
+    var parts = box.value.split(',').map(function (x) { return x.trim() }).filter(Boolean)
+      .filter(function (x) { return lower.indexOf(x.toLowerCase()) < 0 })
+    if (word) parts.push(word)
+    box.value = parts.join(', ')
+    markTouched('caption')
+    syncSheet()
+    markPresets()
+  }
+
   /** Shows which preset words are currently in the caption. */
   function markPresets () {
     var cap = $('caption').value.toLowerCase()
     Array.prototype.forEach.call(document.querySelectorAll('#presets .chip-word'), function (b) {
       var w = (b.getAttribute('data-w') || '').toLowerCase()
       b.classList.toggle('on', cap.indexOf(w) >= 0)
+    })
+    Array.prototype.forEach.call(document.querySelectorAll('#presets select[data-group]'), function (sel) {
+      var found = ''
+      Array.prototype.forEach.call(sel.options, function (o) {
+        if (o.value && cap.indexOf(o.value.toLowerCase()) >= 0) found = o.value
+      })
+      sel.value = found
     })
     // A chosen word hidden behind the count would be invisible and unremovable,
     // so its row opens and stays open.
@@ -322,15 +359,36 @@
       lang.appendChild(el('option', null, esc(l[1]))).value = l[0]
     })
 
-    // The presets, six per row with the rest behind a count.
+    // The presets, by the shape of the choice rather than all as chips.
     //
-    // Fifty-two equal-weight chips on one screen is an unsorted list, not an
-    // interface. The guidance is to show the top five to seven and collapse the
-    // remainder, because more choices cost more time and working memory holds
-    // about seven things. See .claude/skills/ui-ux-bible.
-    var VISIBLE = 6
+    // Five rows of six chips is thirty equal-weight options on one screen, which
+    // is an unsorted list and not an interface. Genre, mood and voice are one-of,
+    // so they are selects. Instruments and texture are genuinely multi-pick, so
+    // they stay chips: five visible, the rest behind a count. See
+    // .claude/skills/ui-ux-bible, and note that in Prompt mode the whole block
+    // is hidden, because there the model writes the style.
+    var VISIBLE = 5
     $('presets').innerHTML = ''
-    v.chips.forEach(function (g) {
+
+    var picks = el('div', 'preset-picks')
+    v.chips.filter(function (g) { return g[2] === 'one' }).forEach(function (g) {
+      var id = 'pick-' + g[0].toLowerCase()
+      var f = el('div', 'field')
+      var lab = el('label', null, esc(g[0]))
+      lab.setAttribute('for', id)
+      var sel = el('select')
+      sel.id = id
+      sel.setAttribute('data-group', g[0])
+      sel.appendChild(el('option', null, 'any')).value = ''
+      g[1].forEach(function (word) { sel.appendChild(el('option', null, esc(word))).value = word })
+      sel.onchange = function () { setOneWord(g[1], sel.value) }
+      f.appendChild(lab)
+      f.appendChild(sel)
+      picks.appendChild(f)
+    })
+    if (picks.childNodes.length) $('presets').appendChild(picks)
+
+    v.chips.filter(function (g) { return g[2] !== 'one' }).forEach(function (g) {
       var name = g[0]
       var words = g[1]
       var row = el('div', 'preset-row')
@@ -357,13 +415,18 @@
     markPresets()
 
     // Structure tags, from the list the server's translator actually knows.
+    // Same shape as the vocabulary above it: an eyebrow, five tags, the rest
+    // behind a count. Three full rows of these was twenty-nine equal chips over
+    // the lyrics box, which is the wall this app keeps growing back.
     var bar = $('tagbar')
     bar.innerHTML = ''
     var groups = [['Sections', v.sections.acestep], ['Voice', v.colourTags.voice], ['Energy', v.colourTags.energy]]
     groups.forEach(function (g) {
-      var wrap = el('span', 'taggroup', '<em>' + g[0] + '</em>')
-      g[1].forEach(function (t) {
-        var b = el('button', 'tag', '[' + esc(t) + ']')
+      var row = el('div', 'preset-row')
+      row.appendChild(el('span', 'preset-label', esc(g[0])))
+      var wrap = el('div', 'preset-chips')
+      g[1].forEach(function (t, i) {
+        var b = el('button', 'tag' + (i >= VISIBLE ? ' extra' : ''), '[' + esc(t) + ']')
         b.onclick = function () {
           var box = $('lyrics')
           var at = box.selectionStart === undefined ? box.value.length : box.selectionStart
@@ -375,7 +438,17 @@
         }
         wrap.appendChild(b)
       })
-      bar.appendChild(wrap)
+      if (g[1].length > VISIBLE) {
+        var more = el('button', 'chip-more', '+' + (g[1].length - VISIBLE))
+        more.title = 'Show the other ' + (g[1].length - VISIBLE) + ' ' + g[0].toLowerCase() + ' tags'
+        more.onclick = function () {
+          var open = row.classList.toggle('all')
+          more.textContent = open ? 'less' : '+' + (g[1].length - VISIBLE)
+        }
+        wrap.appendChild(more)
+      }
+      row.appendChild(wrap)
+      bar.appendChild(row)
     })
 
     // Voice quality: the ONE place the two engines are a real choice, framed as
@@ -1136,8 +1209,7 @@
       if (k === 'instrumental') keep.instrumental = form.instrumental
       else if (form[k] !== '' && form[k] !== 0) keep[k] = form[k]
     })
-    $('do-expand').disabled = true
-    $('brief-hint').textContent = 'writing the sheet on this machine'
+    expandBusy(true)
     api('/api/sheet', { brief: brief, keep: keep })
       .then(function (j) {
         sheetToForm(j.sheet)
@@ -1150,10 +1222,7 @@
         if (notes.length) toast(notes.join(' '))
       })
       .catch(function (e) { toast(e.message) })
-      .then(function () {
-        $('do-expand').disabled = !st.writer.available
-        $('brief-hint').textContent = ''
-      })
+      .then(function () { expandBusy(false) })
   }
 
   $('do-surprise').onclick = function () {

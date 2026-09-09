@@ -144,8 +144,8 @@ body[data-mode=manual] .sheet{border-top:0;padding-top:0}
 body[data-mode=manual] .sheet-body{display:block}
 body[data-mode=prompt] .sheet-body{display:none}
 body[data-mode=prompt] .sheet.open .sheet-body{display:block}
-body[data-mode=prompt] #presets{display:none}
-body[data-mode=prompt] .sheet.open #presets{display:block}
+body[data-mode=prompt] #presets,
+body[data-mode=prompt] #tagbar{display:none}
 /* Folded, Prompt mode is four elements tall. Centring them makes the space
    below read as calm rather than as a broken screen. */
 body[data-mode=prompt] #stage-scroll{display:flex;flex-direction:column;justify-content:center}
@@ -248,6 +248,10 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
 /* ---------------- presets ---------------- */
 .presets{margin-top:var(--s-3);display:flex;flex-direction:column;gap:var(--s-2)}
 .preset-row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:var(--s-3);align-items:start}
+/* Genre, mood and voice: one-of, so three selects on one row. */
+.preset-picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s-4);
+  margin-bottom:var(--s-2)}
+@media(max-width:1180px){.preset-picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .preset-label{font-size:var(--t-xs);letter-spacing:.8px;text-transform:uppercase;
   color:var(--fg-3);padding-top:var(--s-2)}
 .preset-chips{display:flex;flex-wrap:wrap;gap:var(--s-1)}
@@ -260,7 +264,8 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
 /* Chosen has to read without hovering it, so it is a fill and not a tint. */
 .chip-word.on{background:var(--acqua);border-color:var(--acqua);color:var(--acqua-ink);font-weight:500}
 .chip-word.extra{display:none}
-.preset-row.all .chip-word.extra{display:inline-block}
+.preset-row.all .chip-word.extra,.preset-row.all .tag.extra{display:inline-block}
+.tag.extra{display:none}
 .chip-more{
   cursor:pointer;font-size:var(--t-sm);padding:var(--s-1) var(--s-3);border-radius:var(--r-pill);
   background:none;border:1px dashed var(--line-hi);color:var(--fg-3);min-height:28px;
@@ -268,10 +273,7 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
 }
 .chip-more:hover{color:var(--acqua);border-color:var(--acqua-dim)}
 
-.tagbar{display:flex;flex-direction:column;gap:var(--s-1);margin-bottom:var(--s-2)}
-.taggroup{display:flex;flex-wrap:wrap;gap:var(--s-1);align-items:center}
-.taggroup em{font-style:normal;font-size:var(--t-xs);letter-spacing:.8px;text-transform:uppercase;
-  color:var(--fg-3);margin-right:var(--s-1);min-width:64px}
+.tagbar{display:flex;flex-direction:column;gap:var(--s-2);margin-bottom:var(--s-3)}
 .tag{
   cursor:pointer;font-family:var(--mono);font-size:var(--t-xs);padding:var(--s-1) var(--s-2);
   border-radius:var(--r-bar);min-height:24px;background:var(--sunken);
