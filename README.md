@@ -113,7 +113,10 @@ door gets a ceiling and the expert door becomes a second product.
    a rule in the system prompt was measured being ignored. See the next section.
 3. **No standing paragraphs in the UI.** Explanation goes in a `title` on a help glyph, in a
    placeholder, or nowhere. The app once carried 229 words of grey body copy and the controls were
-   hard to find.
+   hard to find. The rest of the front-end rules live in `.claude/skills/ui-ux-bible/SKILL.md` in
+   the monorepo, and the ones that are measurable are enforced: four type sizes (11, 12, 14, 16),
+   spacing only from `4 8 12 16 24 32`, three radii, every text at 4.5:1 or better, every target
+   24px or bigger, no internal identifier on screen, and one primary action per state.
 4. **Verify a model file by size, not by name.** An interrupted download leaves a short file under
    its final name with no partial marker, and the desk offered a 208 MB stub of a 2.55 GB DiT as a
    usable variant. `isTruncated()` in `server.js` compares against the registry's `expectedSize`.

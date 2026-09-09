@@ -135,8 +135,10 @@
     var voices = $('has-voices').checked
     $('voices-label').textContent = voices ? 'on' : 'off'
     $('lyrics-wrap').hidden = !voices
-    $('lang-field').style.opacity = voices ? '1' : '0.4'
+    $('lang-field').style.opacity = voices ? '1' : '0.5'
     $('vocal-language').disabled = !voices
+    // A dead control with no reason is a dead end.
+    $('vocal-language').title = voices ? '' : 'There is no singing to give a language to. Turn Voices on.'
 
     var words = $('caption').value.trim().split(/\s+/).filter(Boolean).length
     $('caption-count').textContent = words ? words + ' words' : ''
@@ -180,18 +182,28 @@
   function renderRenderButton () {
     var running = st.job && st.job.status === 'running'
     if (running) { $('render').textContent = 'Working'; return }
+    // One primary action per state. With no style there is nothing to render, so
+    // the render button steps down and says why, and writing the sheet is the
+    // action. A dead enabled button that answers with a toast is a dead end.
+    var hasStyle = !!$('caption').value.trim()
+    $('do-expand').classList.toggle('primary', !hasStyle)
+    $('render').disabled = !hasStyle
+    $('render').title = hasStyle ? '' :
+      'The sheet has no style yet. Write a brief above, or type a style into the sheet.'
     var n = Number($('variations').value) || 1
     var d = Number($('duration').value) || 60
     var factor = st.prefer === 'vocals' ? 4.4 : 0.12
     var est = Math.round(n * d * factor)
     $('render').textContent = n === 1 ? 'Make one take' : 'Make ' + n + ' takes'
-    $('render').title = n + (n === 1 ? ' take' : ' takes') + ' of ' + secs(d) +
-      ', roughly ' + secs(est) + ' of compute on this machine'
+    if (hasStyle) {
+      $('render').title = n + (n === 1 ? ' take' : ' takes') + ' of ' + secs(d) +
+        ', roughly ' + secs(est) + ' of compute on this machine'
+    }
     // Whenever nothing is running, the status line carries the estimate. Keying
     // this on `!st.job` left it stuck on "done" from the previous render, which
     // is the moment the estimate is most useful.
-    $('prog-stage').textContent = n === 1
-      ? 'ready, about ' + secs(est)
+    $('prog-stage').textContent = !hasStyle ? 'the sheet needs a style'
+      : n === 1 ? 'ready, about ' + secs(est)
       : 'ready, ' + n + ' takes of ' + secs(d) + ', about ' + secs(est)
   }
 
@@ -404,13 +416,13 @@
         'Temperature and top-p for the arrangement stage. Blank leaves the engine\'s own 0.85 and 0.9.'))
     }
     if (accepts('dcwEnabled')) {
-      rows.push(row('DCW',
-        '<label class="check"><input type="checkbox" id="adv-dcw"> 0.05 / 0.02</label>',
+      rows.push(row('Haar correction',
+        '<label class="check"><input type="checkbox" id="adv-dcw"> show it</label>',
         'Haar DCW correction, already on inside the engine at these strengths. Here so you can see them.'))
     }
     if (accepts('augmentCaptionWithMetadata')) {
       rows.push(row('Repeat tempo in style',
-        '<label class="check"><input type="checkbox" id="adv-augment"> on</label>',
+        '<label class="check"><input type="checkbox" id="adv-augment"> repeat it</label>',
         'The ACE-Step authors list a tempo in the style text under things not to do, so this is off. Unmeasured either way.'))
     }
 
@@ -419,7 +431,7 @@
     rows.push(row('Also write',
       common.map(function (f) {
         return '<label class="check"><input type="checkbox" class="fmt" value="' + f + '"' +
-          (f === 'wav' ? ' checked disabled' : '') + '> ' + f + '</label>'
+          (f === 'wav' ? ' checked disabled title="wav is always written"' : '') + '> ' + f + '</label>'
       }).join('') +
       '<details class="more"><summary>more</summary><div class="preset-chips">' +
       formats.filter(function (f) { return common.indexOf(f) < 0 }).map(function (f) {
@@ -431,7 +443,7 @@
 
     function row (label, control, tip) {
       return '<div class="adv-row"><div class="adv-label">' + esc(label) +
-        (tip ? ' <span class="help" title="' + esc(tip) + '"><svg class="icon"><use href="#i-help"/></svg></span>' : '') +
+        (tip ? ' <button type="button" class="help" aria-label="What this means" title="' + esc(tip) + '"><svg class="icon"><use href="#i-help"/></svg></button>' : '') +
         '</div><div class="adv-control">' + control + '</div></div>'
     }
   }
@@ -470,12 +482,12 @@
       var li = el('li', 'lib-item' + (isRef ? ' on' : ''))
       li.innerHTML = '<span class="lib-name">' + esc(item.name) + '</span>' +
         '<span class="quiet">' + secs(item.seconds) + '</span>'
-      var ref = el('button', 'link', isRef ? 'reference' : 'use as reference')
+      var ref = el('button', 'link standalone', isRef ? 'reference' : 'use as reference')
       ref.onclick = function () {
         st.reference = isRef ? null : { kind: 'library', id: item.id, name: item.name }
         renderLibrary()
       }
-      var cov = el('button', 'link', 'cover it')
+      var cov = el('button', 'link standalone', 'cover it')
       cov.onclick = function () { coverFrom({ kind: 'library', id: item.id }, item.name) }
       li.appendChild(ref)
       li.appendChild(cov)
@@ -644,7 +656,7 @@
     var sheet = take.sheet || { caption: take.caption }
 
     if (verb === 'extend') {
-      p.innerHTML = '<h4 title="Silence is appended and the engine fills it, conditioned on the music before it. It resolves rather than continues, so expect an ending. Go in short steps.">Make it longer <span class="help"><svg class="icon"><use href="#i-help"/></svg></span></h4>' +
+      p.innerHTML = '<h4 title="Silence is appended and the engine fills it, conditioned on the music before it. It resolves rather than continues, so expect an ending. Go in short steps.">Make it longer <button type="button" class="help" aria-label="What this means"><svg class="icon"><use href="#i-help"/></svg></button></h4>' +
         '<div class="row"><input type="number" id="v-sec" value="8" min="1" max="60" step="1" title="seconds to add">' +
         '<input type="text" id="v-cap" placeholder="the new part" value="' + esc(sheet.caption) + '"></div>'
       go(p, function () {
@@ -663,7 +675,7 @@
           op: { start: r.from, end: r.to, caption: $('v-cap').value || sheet.caption, mode: 'Balanced', strength: 0.5 } }
       })
     } else if (verb === 'flow') {
-      p.innerHTML = '<h4 title="The whole track is rewritten from one description to another.">Restyle it <span class="help"><svg class="icon"><use href="#i-help"/></svg></span></h4>' +
+      p.innerHTML = '<h4 title="The whole track is rewritten from one description to another.">Restyle it <button type="button" class="help" aria-label="What this means"><svg class="icon"><use href="#i-help"/></svg></button></h4>' +
         '<input type="text" id="v-from" value="' + esc(sheet.caption) + '" title="from">' +
         '<input type="text" id="v-to" placeholder="to, e.g. dark synthwave">'
       go(p, function () {
@@ -672,7 +684,7 @@
           op: { fromCaption: $('v-from').value, toCaption: $('v-to').value } }
       })
     } else if (verb === 'cover') {
-      p.innerHTML = '<h4 title="Keeps the structure of this take and applies a new style. The three strengths are the model authors\' own numbers: 0.4, 0.6, 0.8.">Cover it <span class="help"><svg class="icon"><use href="#i-help"/></svg></span></h4>' +
+      p.innerHTML = '<h4 title="Keeps the structure of this take and applies a new style. The three strengths are the model authors\' own numbers: 0.4, 0.6, 0.8.">Cover it <button type="button" class="help" aria-label="What this means"><svg class="icon"><use href="#i-help"/></svg></button></h4>' +
         '<input type="text" id="v-cap" placeholder="the new style">' +
         '<div class="seg" id="v-strength">' + st.vocab.coverStrengths.map(function (c, i) {
           return '<button class="seg-btn' + (i === 1 ? ' on' : '') + '" data-k="' + c.key + '">' +
@@ -694,7 +706,7 @@
           source: source, coverStrength: picked.k }
       })
     } else if (verb === 'stem') {
-      p.innerHTML = '<h4 title="Generates one isolated layer that follows this take.">Pull out a stem <span class="help"><svg class="icon"><use href="#i-help"/></svg></span></h4>' +
+      p.innerHTML = '<h4 title="Generates one isolated layer that follows this take.">Pull out a stem <button type="button" class="help" aria-label="What this means"><svg class="icon"><use href="#i-help"/></svg></button></h4>' +
         '<div class="preset-chips">' + (st.caps ? st.caps.legoTracks : []).map(function (t, i) {
           return '<button class="chip-word' + (i === 0 ? ' on' : '') + '" data-t="' + t + '">' + t.replace('_', ' ') + '</button>'
         }).join('') + '</div>'
@@ -888,6 +900,21 @@
 
   function gb (b) { return b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : Math.round(b / 1e6) + ' MB' }
 
+  /**
+   * What each file is FOR. A row used to read `Qwen3-Embedding-0.6B-Q8_0.gguf`,
+   * which tells a person nothing they can act on. The filename moves to the
+   * tooltip, where it is still there for anyone who needs it.
+   */
+  var ROLE = {
+    textEncModel: 'Text encoder',
+    lmModel: 'Songwriter',
+    vaeModel: 'Audio decoder',
+    'dit:turbo-q4': 'Generator, fast',
+    'dit:turbo-q8': 'Generator, precise',
+    'dit:sft': 'Generator, 50 steps',
+    writer: 'Brief expander'
+  }
+
   function loadCatalogue () {
     return fetch('/api/models/catalogue').then(function (r) { return r.json() })
       .then(function (c) { st.catalogue = c; renderDetail(); renderBanner() })
@@ -922,10 +949,22 @@
       btn.onclick = function () { downloadKeys(missing.map(function (i) { return i.key }), 'the music model') }
       b.appendChild(btn)
     }
-    var info = el('button', 'link', 'see all models')
+    var info = el('button', 'link standalone', 'see all models')
     info.onclick = function () { $('detail').hidden = false }
     b.appendChild(info)
     host.insertBefore(b, host.firstChild)
+  }
+
+  /** One model row: role, size, and either a state or a way to get it. */
+  function mrow (i) {
+    var role = ROLE[i.key] || i.label
+    return '<li' + (i.onDisk ? ' class="on"' : '') +
+      '><span class="m-role" title="' + esc(i.label) + '">' + esc(role) + '</span>' +
+      '<em>' + gb(i.bytes) + '</em>' +
+      (i.onDisk
+        ? '<b class="ok">ready</b>'
+        : '<button class="link standalone dl-one" data-k="' + esc(i.key) + '" title="Download ' +
+          esc(i.label) + ', ' + gb(i.bytes) + '">Get</button>') + '</li>'
   }
 
   function renderDetail () {
@@ -947,12 +986,7 @@
       out.push('<p class="quiet">Catalogue unavailable.</p>')
     } else {
       out.push('<ul class="mlist">' + cat.items.filter(function (i) { return i.key !== 'writer' })
-        .map(function (i) {
-          return '<li' + (i.onDisk ? ' class="on"' : '') + '><span>' + esc(i.label) + '</span>' +
-            '<em>' + gb(i.bytes) + '</em>' +
-            (i.onDisk ? '<b class="ok">on disk</b>'
-              : '<button class="link dl-one" data-k="' + i.key + '">get</button>') + '</li>'
-        }).join('') + '</ul>')
+        .map(function (i) { return mrow(i) }).join('') + '</ul>')
     }
 
     var trunc = (st.models.acestep && st.models.acestep.truncated) || []
@@ -964,26 +998,23 @@
     out.push('<h4>Brief expander <span class="quiet">optional, Prompt mode</span></h4>')
     var w = cat && cat.items ? cat.items.find(function (i) { return i.key === 'writer' }) : null
     if (w) {
-      out.push('<ul class="mlist"><li' + (w.onDisk ? ' class="on"' : '') + '><span>' +
-        esc(prettyModel(st.writer && st.writer.model) !== 'none' && w.onDisk
-          ? prettyModel(st.writer.model) : w.label) +
-        '</span><em>' + gb(w.bytes) + '</em>' +
-        (w.onDisk ? '<b class="ok">on disk</b>'
-          : '<button class="link dl-one" data-k="writer">get</button>') + '</li></ul>')
+      out.push('<ul class="mlist">' + mrow(w) + '</ul>')
     }
 
     out.push('<h4>MiniMax-Music3 <span class="quiet">bring your own weights</span></h4>')
-    out.push('<p class="quiet">Not distributed by QVAC. Point the desk at a folder holding ' +
-      '<code>mm3-lm-*.gguf</code> and <code>mm3-synth-*.gguf</code>.</p>')
+    out.push('<p class="quiet">Point the desk at your own <code>mm3-lm-*</code> and ' +
+      '<code>mm3-synth-*</code>.</p>')
     out.push('<div class="row"><input type="text" id="mm3-dir" placeholder="~/mm3-demo/models/minimax" value="' +
       esc((st.models.minimax && st.models.minimax.dir) || '') + '"><button class="btn" id="mm3-scan">Scan</button></div>')
 
     if (st.caps) {
       out.push('<h4>Addon <span class="quiet">' + esc(st.caps.addonVersion) + '</span></h4>')
-      out.push('<p class="quiet">Capabilities read from the addon at startup. ACE-Step refuses ' +
-        Object.keys(st.caps.accepts.acestep).filter(function (k) { return !st.caps.accepts.acestep[k] }).length +
-        ' options, MiniMax ' +
-        Object.keys(st.caps.accepts.minimax).filter(function (k) { return !st.caps.accepts.minimax[k] }).length + '.</p>')
+      var no = function (e) {
+        return Object.keys(st.caps.accepts[e]).filter(function (k) { return !st.caps.accepts[e][k] }).length
+      }
+      out.push('<p class="quiet" title="Read from the addon at startup by asking its validator, ' +
+        'not from a table in this app.">ACE-Step refuses ' + no('acestep') +
+        ' options, MiniMax ' + no('minimax') + '.</p>')
     }
     var m = st.machine
     out.push('<h4>Machine</h4><p class="quiet">' + esc(m.platform) + ' ' + esc(m.arch) + ', ' +
@@ -991,7 +1022,11 @@
 
     body.innerHTML = out.join('')
     Array.prototype.forEach.call(body.querySelectorAll('.dl-one'), function (b) {
-      b.onclick = function () { downloadKeys([b.getAttribute('data-k')], b.previousElementSibling.textContent) }
+      b.onclick = function () {
+        var row = b.closest('li')
+        var role = row ? row.querySelector('.m-role').textContent : 'the model'
+        downloadKeys([b.getAttribute('data-k')], role)
+      }
     })
     if ($('mm3-scan')) {
       $('mm3-scan').onclick = function () {

@@ -78,9 +78,7 @@
 
           <div class="field">
             <label for="caption">Style
-              <span class="help" title="Prose, not a tag list. 15 to 25 words. Name a genre and at least two instruments, and say &quot;no percussion&quot; if there should be none. Never put a tempo or a key here.">
-                <svg class="icon"><use href="#i-help"/></svg>
-              </span>
+              <button type="button" class="help" aria-label="What this means" title="Prose, not a tag list. 15 to 25 words. Name a genre and at least two instruments, and say &quot;no percussion&quot; if there should be none. Never put a tempo or a key here."><svg class="icon"><use href="#i-help"/></svg></button>
               <em class="counter" id="caption-count"></em>
             </label>
             <textarea id="caption" rows="2" spellcheck="false"
@@ -91,9 +89,7 @@
           <div class="field">
             <label>Voices
               <span class="switch"><input type="checkbox" id="has-voices"><span id="voices-label">off</span></span>
-              <span class="help" title="Structure tags belong in the lyrics, never in the style. This field is what the model reads when it plans the arrangement. About 90 to 140 words per 47 seconds.">
-                <svg class="icon"><use href="#i-help"/></svg>
-              </span>
+              <button type="button" class="help" aria-label="What this means" title="Structure tags belong in the lyrics, never in the style. This field is what the model reads when it plans the arrangement. About 90 to 140 words per 47 seconds."><svg class="icon"><use href="#i-help"/></svg></button>
             </label>
             <div id="lyrics-wrap" hidden>
               <div class="tagbar" id="tagbar"></div>
@@ -108,9 +104,7 @@
             </div>
             <div class="field">
               <label for="bpm">Tempo <em class="counter" id="bpm-out"></em>
-                <span class="help" title="Slow 60 to 80, mid 90 to 120, fast 130 to 180. Leave it off for anything atmospheric: naming a tempo tells the model there is a pulse, which invites a drum beat.">
-                  <svg class="icon"><use href="#i-help"/></svg>
-                </span>
+                <button type="button" class="help" aria-label="What this means" title="Slow 60 to 80, mid 90 to 120, fast 130 to 180. Leave it off for anything atmospheric: naming a tempo tells the model there is a pulse, which invites a drum beat."><svg class="icon"><use href="#i-help"/></svg></button>
               </label>
               <input type="range" id="bpm" min="0" max="200" step="1" value="0">
             </div>
@@ -132,7 +126,7 @@
               <input type="range" id="variations" min="1" max="4" step="1" value="3">
             </div>
             <div class="field">
-              <label>Quality <span class="help" id="prefer-help"><svg class="icon"><use href="#i-help"/></svg></span></label>
+              <label>Quality <button type="button" class="help" aria-label="What this means" id="prefer-help"><svg class="icon"><use href="#i-help"/></svg></button></label>
               <div class="seg" id="prefer"></div>
             </div>
           </div>
@@ -160,7 +154,7 @@
   <aside class="takes">
     <div class="drop slim" id="drop" title="Anything ffmpeg reads. Converted to stereo 48 kHz float, the only shape the engine accepts.">
       <svg class="icon"><use href="#i-import"/></svg>
-      <span>Drop audio, or <button class="link" id="pick">choose a file</button></span>
+      <span>Drop audio, or <button class="link standalone" id="pick">choose a file</button></span>
       <input type="file" id="file" accept="audio/*,video/*" hidden multiple>
     </div>
     <ul class="lib" id="lib-list"></ul>
