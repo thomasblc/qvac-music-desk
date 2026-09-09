@@ -264,6 +264,14 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
 /* Chosen has to read without hovering it, so it is a fill and not a tint. */
 .chip-word.on{background:var(--acqua);border-color:var(--acqua);color:var(--acqua-ink);font-weight:500}
 .chip-word.extra{display:none}
+/* A filter shows every match, however deep in the list it was. */
+.preset-row.filtering .chip-word.extra{display:inline-block}
+.chip-filter{
+  width:96px;font-size:var(--t-sm);min-height:28px;padding:var(--s-1) var(--s-3);
+  border-radius:var(--r-pill);background:var(--sunken);border:1px solid var(--line);color:var(--fg);
+}
+.chip-filter::placeholder{color:var(--fg-3)}
+.chip-filter:focus{border-color:var(--acqua-dim)}
 .preset-row.all .chip-word.extra,.preset-row.all .tag.extra{display:inline-block}
 .tag.extra{display:none}
 .chip-more{
@@ -289,7 +297,7 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
   align-items:flex-start;gap:0;transition:all var(--fast) var(--ease);
 }
 .seg-btn + .seg-btn{border-left:1px solid var(--line)}
-.seg-btn em{font-style:normal;font-size:var(--t-xs);color:var(--fg-3)}
+.seg-btn em{font-style:normal;font-size:var(--t-xs);color:var(--fg-3);display:block}
 .seg-btn:hover:not(:disabled){color:var(--fg);background:var(--card-2)}
 .seg-btn.on{background:rgba(22,227,193,.12);color:var(--acqua)}
 .seg-btn:disabled{opacity:.45;cursor:not-allowed}

@@ -140,9 +140,7 @@
     // A dead control with no reason is a dead end.
     $('vocal-language').title = voices ? '' : 'There is no singing to give a language to. Turn Voices on.'
 
-    var words = $('caption').value.trim().split(/\s+/).filter(Boolean).length
-    $('caption-count').textContent = words ? words + ' words' : ''
-    $('caption-count').className = 'counter' + (words > 30 ? ' warn' : '')
+    renderTagCount()
 
     var d = Number($('duration').value)
     $('duration-out').textContent = secs(d)
@@ -160,6 +158,23 @@
     $('variations').title = 'The model authors recommend two to four and pick from them'
     renderRenderButton()
     renderSheetSummary()
+  }
+
+  /**
+   * The style is a keyword list, so the counter counts keywords. The authors'
+   * range is 5 to 12, and past 15 they dilute each other, so the number goes
+   * quiet inside the range and warns outside it. It used to count words, which
+   * rewarded prose: sixteen words carrying four keywords read as plenty.
+   */
+  function renderTagCount () {
+    var t = (st.vocab.tagTarget || { low: 5, high: 12, dilute: 15 })
+    var n = $('caption').value.split(',').map(function (x) { return x.trim() }).filter(Boolean).length
+    var out = $('caption-count')
+    out.textContent = n ? n + (n === 1 ? ' keyword' : ' keywords') : ''
+    out.classList.toggle('warn', n > 0 && (n < t.low || n > t.dilute))
+    out.title = n < t.low ? 'Thin. ' + t.low + ' to ' + t.high + ' keywords works best'
+      : n > t.dilute ? 'Past ' + t.dilute + ' keywords they dilute each other'
+        : t.low + ' to ' + t.high + ' keywords works best'
   }
 
   /** The one line that stands in for the sheet while it is collapsed. */
@@ -192,7 +207,9 @@
       'The sheet has no style yet. Write a brief above, or type a style into the sheet.'
     var n = Number($('variations').value) || 1
     var d = Number($('duration').value) || 60
-    var factor = st.prefer === 'vocals' ? 4.4 : 0.12
+    // Measured here, compute divided by audio length: turbo-q4 0.12 to 0.20,
+    // the 50-step sft 0.56, MiniMax 4.4.
+    var factor = st.prefer === 'vocals' ? 4.4 : st.prefer === 'detailed' ? 0.56 : 0.12
     var est = Math.round(n * d * factor)
     $('render').textContent = n === 1 ? 'Make one take' : 'Make ' + n + ' takes'
     if (hasStyle) {
@@ -267,8 +284,19 @@
     markPresets()
   }
 
+  /** Shows only the words that match what is typed, and every one of them. */
+  function filterRow (row, term) {
+    var q = String(term || '').trim().toLowerCase()
+    row.classList.toggle('filtering', !!q)
+    Array.prototype.forEach.call(row.querySelectorAll('.chip-word'), function (b) {
+      b.hidden = !!q && (b.getAttribute('data-w') || '').toLowerCase().indexOf(q) < 0
+    })
+    var more = row.querySelector('.chip-more')
+    if (more) more.hidden = !!q
+  }
+
   /**
-   * Genre, mood and voice are one-of. A row of chips for a one-of choice is a
+   * Genre, voice and era are one-of. A row of chips for a one-of choice is a
    * radio group drawn as a wall, so they are selects, and picking one replaces
    * whatever word of that group was in the caption.
    */
@@ -394,6 +422,17 @@
       var row = el('div', 'preset-row')
       row.appendChild(el('span', 'preset-label', esc(name)))
       var wrap = el('div', 'preset-chips')
+      // Fifty-nine instruments cannot be a row of chips and cannot be a select
+      // either. Typing "guit" and seeing the four guitars is the control for a
+      // list this long: the five likely ones stay visible until you type.
+      if (words.length > 12) {
+        var f = el('input', 'chip-filter')
+        f.type = 'search'
+        f.placeholder = 'filter'
+        f.setAttribute('aria-label', 'Filter ' + name.toLowerCase())
+        f.oninput = function () { filterRow(row, f.value) }
+        wrap.appendChild(f)
+      }
       words.forEach(function (word, i) {
         var b = el('button', 'chip-word' + (i >= VISIBLE ? ' extra' : ''), esc(word))
         b.setAttribute('data-w', word)
@@ -453,14 +492,31 @@
 
     // Voice quality: the ONE place the two engines are a real choice, framed as
     // what the person hears rather than as a model name.
+    // Quality is mostly which generator runs, and the desk used to ignore that:
+    // every render went through the 4-bit 8-step draft variant. The 50-step one
+    // is the reference, and it is the only one where guidance does anything.
     var mmReady = st.models.minimax.ready && st.models.minimax.supported
+    var dits = st.models.acestep.dits || {}
+    var detailed = !!(dits.sft || dits['turbo-q8'])
     $('prefer').innerHTML = ''
-    ;[['fast', 'Fast'], ['vocals', 'Richer vocals']].forEach(function (o) {
-      var b = el('button', 'seg-btn' + (st.prefer === o[0] ? ' on' : ''), o[1])
-      b.disabled = o[0] === 'vocals' && !mmReady
-      b.onclick = function () { st.prefer = o[0]; fillStatics(); syncSheet() }  // syncSheet re-costs the button
-      $('prefer').appendChild(b)
-    })
+    ;[['fast', 'Fast', '8 steps'], ['detailed', 'Detailed', '50 steps'], ['vocals', 'Richer vocals', 'MiniMax']]
+      .forEach(function (o) {
+        var b = el('button', 'seg-btn' + (st.prefer === o[0] ? ' on' : ''),
+          esc(o[1]) + '<em>' + esc(o[2]) + '</em>')
+        if (o[0] === 'vocals' && !mmReady) {
+          b.disabled = true
+          b.title = 'Needs MiniMax-Music3, which you supply yourself. Info panel.'
+        } else if (o[0] === 'detailed' && !detailed) {
+          b.disabled = true
+          b.title = 'Needs the 50-step generator, 2.5 GB. Get it in the Info panel.'
+        } else {
+          b.title = o[0] === 'fast' ? 'The 8-step generator. About eight times faster and the one to sketch with.'
+            : o[0] === 'detailed' ? 'The 50-step generator, the quality reference. Roughly six times the compute.'
+              : 'MiniMax-Music3, stronger singing, about thirty times the compute.'
+        }
+        b.onclick = function () { st.prefer = o[0]; fillStatics(); syncSheet() }
+        $('prefer').appendChild(b)
+      })
     $('prefer-help').title = !mmReady
       ? 'Richer vocals needs the MiniMax weights, which are not on this machine'
       : 'Fast is ACE-Step, measured here at 0.12 to 0.29x the audio length. Richer vocals is MiniMax-Music3 at about 4.4x, so a 30 s clip takes about 2 minutes.'

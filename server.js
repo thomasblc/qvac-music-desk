@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { STARTERS, CHIPS, KEYS, TIME_SIGNATURES, LANGUAGES, COVER_STRENGTHS,
   COMMON_FORMATS, SECTIONS, COLOUR_TAGS, translateTags } from './lib/vocab.mjs'
 import * as writer from './lib/sheet.mjs'
+import { conformCaption, TAG_TARGET } from './lib/caption.mjs'
 
 const DIR = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 3055)
@@ -370,6 +371,25 @@ async function fetchModels (keys) {
  * model name: measured on this machine, ACE-Step turbo runs at 0.12 to 0.29
  * times the audio length and MiniMax at 4.37.
  */
+/**
+ * Which DiT to run. This is the quality axis and the desk used to ignore it: it
+ * always loaded turbo-q4, the 4-bit 8-step variant, which the addon's own
+ * benchmark doc calls the smallest and fastest and which the authors pair with
+ * "sketching". `sft` is 50 steps and the only variant that supports CFG, and
+ * the addon calls it the quality reference. Judging the model on turbo-q4 alone
+ * was judging its draft mode.
+ */
+function pickDit (prefer, requested) {
+  const have = state.models.acestep.dits || {}
+  if (requested && have[requested]) return requested
+  if (prefer === 'detailed') {
+    if (have.sft) return 'sft'
+    if (have['turbo-q8']) return 'turbo-q8'
+  }
+  if (have['turbo-q4']) return 'turbo-q4'
+  return Object.keys(have)[0]
+}
+
 function engineFor (task, prefer) {
   const needsAudioIn = ['cover', 'repaint', 'extend', 'flow-edit', 'stem'].includes(task)
   if (needsAudioIn) return 'acestep'
@@ -596,7 +616,8 @@ async function runOne (body) {
 /** Turns a task-shaped request into the job body the worker already understands. */
 function translateRequest (req) {
   const task = req.task || 'compose'
-  const engine = engineFor(task, req.prefer === 'vocals' ? 'minimax' : 'fast')
+  const engine = engineFor(task, req.prefer === 'vocals' ? 'minimax' : req.prefer)
+  const ditVariant = engine === 'acestep' ? pickDit(req.prefer, req.ditVariant) : null
   const sheet = req.sheet || {}
   const adv = req.advanced || {}
   const accepts = (key) => !state.caps || state.caps.accepts[engine][key] !== false
@@ -614,6 +635,16 @@ function translateRequest (req) {
     for (const c of t.changes) {
       notes.push(c.to ? `${c.from} became ${c.to}${c.why ? `, ${c.why}` : ''}` : `dropped ${c.from}, ${c.why}`)
     }
+  }
+
+  // The caption, put in the shape the authors describe, with every change said
+  // out loud. Both doors go through here: the expander writes one and the chips
+  // build one, and neither is trusted to have got the rules right.
+  let caption = (sheet.caption || '').trim()
+  if (task !== 'surprise' && caption) {
+    const fixed = conformCaption(caption, { instrumental: !!sheet.instrumental })
+    caption = fixed.caption
+    for (const n of fixed.notes) notes.push(n)
   }
 
   const mode = task === 'cover' ? 'cover'
@@ -658,6 +689,11 @@ function translateRequest (req) {
   // Advanced, only what this engine accepts, only when actually set.
   if (adv.normalizeLoudness === false && accepts('normalizeLoudness')) opts.normalizeLoudness = false
   if (Number(adv.guidanceScale) && accepts('guidanceScale')) opts.guidanceScale = Number(adv.guidanceScale)
+  else if (ditVariant === 'sft' && accepts('guidanceScale')) {
+    // The authors: CFG is only functional on base and sft, and the default is
+    // 7.0. On turbo it is fixed at 1 and setting it does nothing.
+    opts.guidanceScale = 7
+  }
   if (Number(adv.inferenceSteps) && accepts('inferenceSteps')) opts.inferenceSteps = Number(adv.inferenceSteps)
   if (Number(adv.cfgScale) && accepts('cfgScale')) opts.cfgScale = Number(adv.cfgScale)
   if (Number(adv.lmTemperature) && accepts('lmTemperature')) opts.lmTemperature = Number(adv.lmTemperature)
@@ -712,11 +748,11 @@ function translateRequest (req) {
     task,
     engine,
     mode,
-    caption: task === 'surprise' ? (req.brief || '').trim() : (sheet.caption || '').trim(),
+    caption: task === 'surprise' ? (req.brief || '').trim() : caption,
     opts,
     operations,
     formats,
-    ditVariant: req.ditVariant,
+    ditVariant,
     useGPU: req.useGPU !== false,
     source: req.source,
     reference: req.reference,
@@ -828,7 +864,7 @@ const server = http.createServer(async (req, res) => {
         // the tag lists the UI offers are the ones the translator knows about.
         vocab: { starters: STARTERS, chips: CHIPS, keys: KEYS, timeSignatures: TIME_SIGNATURES,
           languages: LANGUAGES, coverStrengths: COVER_STRENGTHS, commonFormats: COMMON_FORMATS,
-          sections: SECTIONS, colourTags: COLOUR_TAGS },
+          sections: SECTIONS, colourTags: COLOUR_TAGS, tagTarget: TAG_TARGET },
         machine: { platform: process.platform, arch: process.arch, cpus: os.cpus().length, ramGB: Math.round(os.totalmem() / 1e9) }
       })
     }
