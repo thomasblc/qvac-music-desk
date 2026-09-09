@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Desk: UX review and redesign</title>
+<style>
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("Geist.woff2") format("woff2"); }
+
+:root{
+  --acqua:#16E3C1; --acqua-dim:#00AF92;
+  --page:#0D0E0D; --card:#141614; --card-2:#191B19; --sunken:#101110;
+  --line:#242724; --line-hi:#30504B;
+  --fg:#ECF1EE; --fg-2:#C2CDC8; --fg-3:#8A9A94; --fg-4:#5A655F;
+  --bad:#F26D6D; --warn:#E8C34A; --ok:#16E3C1;
+  --mono: ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 28px 120px}
+
+/* ---------- masthead ---------- */
+header.top{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+.kicker{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acqua);margin:0 0 18px}
+h1{font-size:46px;line-height:1.08;font-weight:500;letter-spacing:-1px;margin:0 0 18px;max-width:20ch}
+h1 em{font-style:normal;color:var(--acqua)}
+.standfirst{font-size:19px;line-height:1.55;color:var(--fg-2);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.tag{font-size:11.5px;letter-spacing:.4px;color:var(--fg-3);border:1px solid var(--line);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.tag b{color:var(--fg);font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{margin:44px 0 0;padding:28px 32px;border-radius:12px;background:var(--card);border:1px solid var(--line-hi);position:relative;overflow:hidden}
+.verdict:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--acqua)}
+.verdict p{margin:0;font-size:21px;line-height:1.5;color:var(--fg)}
+.verdict p + p{margin-top:14px;font-size:16.5px;color:var(--fg-2)}
+
+/* ---------- sections ---------- */
+section{padding-top:72px}
+h2{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--fg-3);font-weight:500;margin:0 0 8px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+h2 span{color:var(--acqua)}
+.lede{font-size:17.5px;color:var(--fg-2);max-width:66ch;margin:22px 0 0}
+h3{font-size:23px;font-weight:500;letter-spacing:-.3px;margin:40px 0 10px}
+h4{font-size:16px;font-weight:600;margin:26px 0 8px;color:var(--fg)}
+p{max-width:72ch}
+a{color:var(--acqua);text-decoration:none;border-bottom:1px solid rgba(22,227,193,.3)}
+a:hover{border-bottom-color:var(--acqua)}
+code{font-family:var(--mono);font-size:.88em;background:var(--sunken);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--fg-2)}
+strong{font-weight:600;color:#fff}
+/* Standing rule: this brand never sets italic type. Emphasis is colour and weight,
+   so every <em> here is upright and every quoted UI string reads as a quoted string. */
+em{font-style:normal;color:var(--fg);font-weight:500}
+h1 em{font-weight:500;color:var(--acqua)}
+.quote em, .ev em{color:var(--fg)}
+
+/* ---------- findings ---------- */
+.finding{margin-top:32px;padding-left:56px;position:relative}
+.finding .n{position:absolute;left:0;top:2px;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--sans);font-size:15px;font-weight:600;background:var(--card-2);border:1px solid var(--line);color:var(--fg-3)}
+.finding.hard .n{background:rgba(242,109,109,.1);border-color:rgba(242,109,109,.4);color:var(--bad)}
+.finding.stale .n{background:rgba(232,195,74,.1);border-color:rgba(232,195,74,.4);color:var(--warn)}
+.finding h3{margin:0 0 8px;font-size:20.5px}
+.finding p{margin:8px 0 0;color:var(--fg-2)}
+.sev{display:inline-block;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-left:10px;vertical-align:3px;font-weight:600}
+.sev.hard{background:rgba(242,109,109,.14);color:var(--bad)}
+.sev.stale{background:rgba(232,195,74,.14);color:var(--warn)}
+
+/* ---------- evidence blocks ---------- */
+.ev{margin:16px 0 0;padding:14px 18px;background:var(--sunken);border:1px solid var(--line);border-left:2px solid var(--acqua-dim);border-radius:0 8px 8px 0;font-size:14.5px;color:var(--fg-2)}
+.ev .lab{display:block;font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);margin-bottom:7px}
+.ev code{background:#0a0b0a}
+.quote{margin:16px 0 0;padding:14px 18px;border-left:2px solid var(--line-hi);background:var(--card);border-radius:0 8px 8px 0;font-size:15px;color:var(--fg-2)}
+.quote .src{display:block;margin-top:8px;font-size:12.5px;color:var(--fg-4)}
+
+/* ---------- tables ---------- */
+.tbl{width:100%;overflow-x:auto;margin:22px 0 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+th{text-align:left;font-weight:500;font-size:11px;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);padding:0 14px 10px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 14px 11px 0;border-bottom:1px solid var(--line);color:var(--fg-2);vertical-align:top}
+td:first-child{color:var(--fg)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.yes{color:var(--ok)} .no{color:var(--bad)} .mid{color:var(--warn)}
+
+/* ---------- before / after ---------- */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}
+.ba > div{padding:20px 22px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.ba .now{border-color:rgba(242,109,109,.28)}
+.ba .next{border-color:rgba(22,227,193,.28)}
+.ba h4{margin:0 0 12px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase}
+.ba .now h4{color:var(--bad)} .ba .next h4{color:var(--acqua)}
+.ba ul{margin:0;padding-left:18px;font-size:14.5px;color:var(--fg-2)}
+.ba li{margin-bottom:7px}
+@media(max-width:760px){.ba{grid-template-columns:1fr}}
+
+/* ---------- screen sketch ---------- */
+.sketch{margin:26px 0 0;border:1px solid var(--line-hi);border-radius:12px;overflow:hidden;background:var(--card)}
+.sk-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--sunken);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--fg-3)}
+.sk-dot{width:9px;height:9px;border-radius:50%;background:var(--line-hi)}
+.sk-body{padding:26px}
+.sk-prompt{border:2px dashed rgba(22,227,193,.34);border-radius:10px;padding:20px 22px;background:rgba(22,227,193,.03)}
+.sk-prompt .ph{color:var(--fg-4);font-size:16px}
+.sk-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.sk-card{flex:1 1 150px;padding:11px 13px;border-radius:8px;background:var(--card-2);border:1px solid var(--line);font-size:13px}
+.sk-card b{display:block;font-size:13.5px;font-weight:500;color:var(--fg);margin-bottom:3px}
+.sk-card span{color:var(--fg-4);font-size:12px}
+.sk-btn{padding:10px 22px;border-radius:8px;background:var(--acqua);color:#08120f;font-weight:600;font-size:14.5px;display:inline-block;margin-top:16px}
+.sk-note{margin-top:14px;font-size:12.5px;color:var(--fg-4)}
+.sk-take{display:flex;align-items:center;gap:14px;margin-top:20px;padding:14px 16px;border-radius:9px;background:var(--card-2);border:1px solid var(--line)}
+.sk-wave{flex:1;height:34px;border-radius:5px;background:linear-gradient(90deg,rgba(22,227,193,.5) 0 2%,rgba(22,227,193,.14) 2% 6%,rgba(22,227,193,.62) 6% 11%,rgba(22,227,193,.2) 11% 17%,rgba(22,227,193,.75) 17% 30%,rgba(22,227,193,.28) 30% 37%,rgba(22,227,193,.68) 37% 55%,rgba(22,227,193,.18) 55% 62%,rgba(22,227,193,.8) 62% 82%,rgba(22,227,193,.3) 82% 100%)}
+.sk-verbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.sk-verb{font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line-hi);color:var(--fg-2);white-space:nowrap}
+.sk-verb.pri{border-color:var(--acqua);color:var(--acqua)}
+
+/* ---------- prompt spec ---------- */
+pre{margin:18px 0 0;padding:20px 22px;background:var(--sunken);border:1px solid var(--line);border-radius:10px;overflow-x:auto;
+  font-family:var(--mono);font-size:13px;line-height:1.65;color:var(--fg-2)}
+pre b{color:var(--acqua);font-weight:400}
+
+/* ---------- plan ---------- */
+.plan{margin-top:26px;counter-reset:step}
+.step{display:grid;grid-template-columns:44px 1fr auto;gap:18px;align-items:start;padding:18px 0;border-bottom:1px solid var(--line)}
+.step:before{counter-increment:step;content:counter(step);width:32px;height:32px;border-radius:8px;background:var(--acqua);color:#08120f;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.step h4{margin:0 0 4px;font-size:17px;font-weight:500}
+.step p{margin:0;font-size:14.5px;color:var(--fg-2)}
+.step .cost{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--fg-4);white-space:nowrap;padding-top:8px}
+
+footer{margin-top:80px;padding-top:28px;border-top:1px solid var(--line);font-size:13px;color:var(--fg-4);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">QVAC Music Desk &middot; test/37 &middot; 9 September 2026</p>
+  <h1>A capability map, not yet <em>an instrument</em></h1>
+  <p class="standfirst">
+    A review of the Music Desk UI against one goal: someone who has never used it, and is not a
+    musician, should get a good song out of it quickly. Every claim below is either read out of the
+    installed addon, measured on this machine today, or quoted from the model authors. Your own
+    example brief is worked end to end and rendered both ways in part two.
+  </p>
+  <div class="meta">
+    <span class="tag">reviewed <b>public/index.html, app.js, server.js</b></span>
+    <span class="tag">addon installed <b>@qvac/audiogen-ggml 0.3.3</b></span>
+    <span class="tag">app documented for <b>0.3.2</b></span>
+    <span class="tag">machine <b>arm64, 18 cores, 39 GB</b></span>
+    <span class="tag">ACE-Step DiT on disk <b>turbo-q4 only</b></span>
+  </div>
+</header>
+
+<div class="verdict" style="border-color:rgba(22,227,193,.5)">
+  <p>Built, on 9 September 2026. This review is now a record of why.</p>
+  <p>
+    All eight steps of part three shipped: the three doors on one sheet, the brief expander with
+    its two code-side guards, verbs on takes with a draggable waveform range, batches of seeds,
+    the cover-strength table unlocked, the DCW defaults corrected, capabilities read from the
+    addon at startup, and per-engine tag translation. Two bugs were found while building it and
+    are recorded in the session log: a queue race that marked a healthy render failed, and a grid
+    item without <code>min-height:0</code> that pushed the transport bar off screen.
+  </p>
+</div>
+
+<div class="verdict">
+  <p>
+    The desk is an excellent, honest map of what the two engines can do. It is organised around the
+    engines. A music tool has to be organised around what you want to hear.
+  </p>
+  <p>
+    The single most important finding is not a design opinion. The engine already ships the feature
+    you asked me to invent, and the app does not call it: <code>simpleMode</code> takes one sentence
+    and has the model write the caption, the lyrics, the tempo, the key and the structure itself.
+    It is in the addon that is installed right now, and the ACE-Step authors recommend it as the
+    entry point for exactly the person you are aiming at.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<section id="findings">
+  <h2>Part one <span>&middot;</span> What is wrong, with the evidence</h2>
+  <p class="lede">
+    Twelve findings. Four are hard blockers for a newcomer, three are places where the app now states
+    something about the engine that stopped being true when the addon moved from 0.3.2 to 0.3.3.
+  </p>
+
+  <div class="finding hard">
+    <div class="n">1</div>
+    <h3>The first decision it asks for is the one decision a newcomer cannot make<span class="sev hard">blocker</span></h3>
+    <p>
+      The top bar makes you choose <strong>MiniMax-Music3</strong> or <strong>ACE-Step 1.5</strong>
+      before anything else. Neither name means anything to someone who wants a song, and the choice
+      silently removes most of the app: pick MiniMax and Cover and Edit chain go grey.
+    </p>
+    <p>
+      It is also barely a real choice. Every input-audio feature belongs to one engine, and the speed
+      gap is close to an order of magnitude, so the task decides the engine in every case but one.
+    </p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Task</th><th>MiniMax-Music3</th><th>ACE-Step 1.5</th><th>Who decides</th></tr></thead>
+        <tbody>
+          <tr><td>Text to music</td><td class="yes">yes</td><td class="yes">yes</td><td>the only genuine choice</td></tr>
+          <tr><td>Reference timbre</td><td class="no">refused</td><td class="yes">yes</td><td>the task</td></tr>
+          <tr><td>Cover</td><td class="no">refused</td><td class="yes">yes</td><td>the task</td></tr>
+          <tr><td>Repaint, Flow-Edit, Extend</td><td class="no">refused by name</td><td class="yes">yes</td><td>the task</td></tr>
+          <tr><td>Stems (lego)</td><td class="no">refused</td><td class="mid">needs the base DiT</td><td>the task</td></tr>
+          <tr><td>Tempo, key, time signature</td><td class="no">throws</td><td class="yes">yes</td><td>the task</td></tr>
+          <tr><td>Runs on mobile</td><td class="no">desktop only</td><td class="yes">yes</td><td>the device</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ev">
+      <span class="lab">Measured, compute time divided by audio length, lower is faster</span>
+      ACE-Step turbo-q4 today: 36.24 s of audio in <strong>10.67 s</strong>, so <strong>0.29x</strong>.
+      MiniMax measured on this machine on 7 September: 3.99 s of audio in 17.5 s, so <strong>4.37x</strong>.
+      On the one task where both work, MiniMax costs roughly fifteen times the wait.
+    </div>
+  </div>
+
+  <div class="finding hard">
+    <div class="n">2</div>
+    <h3>The engine already writes the prompt for you, and the app never asks it to<span class="sev hard">blocker</span></h3>
+    <p>
+      This is the answer to "maybe it makes sense to have an LLM reformulate my request". You do not
+      need to add one for the basic case. ACE-Step's own language-model stage does it, through a flag
+      the app does not send anywhere in <code>server.js</code>, <code>engine/worker.cjs</code> or
+      <code>public/app.js</code>.
+    </p>
+    <div class="quote">
+      With <code>simpleMode: true</code> the caption is a short natural-language query and the LM
+      composes the complete request before synthesis: a detailed caption, full lyrics, and every
+      metadata field you left unset (BPM, key/scale, time signature, vocal language, and duration
+      when <code>duration</code> is 0).
+      <span class="src">@qvac/audiogen-ggml 0.3.3 README, added in 0.3.2 (1 September 2026)</span>
+    </div>
+    <div class="ev">
+      <span class="lab">Verified today, one sentence in, nothing else set</span>
+      Query: <em>a sad piano song about a breakup, female voice</em>. Result: 36.24 s of audio,
+      10.67 s of compute, peak <strong>-0.9 dBFS</strong>, RMS -16.9 dBFS, per-5s RMS
+      -22, -15.7, -14.6, -14.9, -18.2, so a spread of <strong>7.40 dB</strong>.
+      For comparison, our own earlier measurements on the same rig: a hand-written structure-tag
+      prompt reached <strong>4.74 dB</strong> of spread and a caption-only take
+      <strong>0.18 to 1.05 dB</strong>, which is one loop. One take each, so treat the direction as
+      the finding and not the exact figure: the model's own songwriter arranged the track better than
+      our best hand-authored prompt.
+    </div>
+    <div class="quote">
+      Start with Simple Mode, then move to Custom Mode once they understand how the system responds.
+      <span class="src">ACE-Step 1.5, musicians guide, on the recommended path for newcomers</span>
+    </div>
+  </div>
+
+  <div class="finding hard">
+    <div class="n">3</div>
+    <h3>Nothing gets you started, and the main button is disabled until you do<span class="sev hard">blocker</span></h3>
+    <p>
+      On first load the transport reads <strong>idle, write a style caption</strong> and Render is
+      disabled. The empty state asks a non-musician for the one thing they do not know how to write.
+      There is no preset, no example, no "make me something", and the Takes panel is empty with no
+      suggestion of what a take even looks like.
+    </p>
+    <p>
+      The 51 style chips underneath are the closest thing to help, and they are a flat wall: five
+      groups, every chip the same weight, appended to the free-text box. They are a vocabulary, not
+      a path. A newcomer does not know that <code>cumbia</code> and <code>tape saturation</code> are
+      different kinds of decision.
+    </p>
+  </div>
+
+  <div class="finding hard">
+    <div class="n">4</div>
+    <h3>The words on screen are the model's, not the listener's<span class="sev hard">blocker</span></h3>
+    <p>
+      Reading the interface top to bottom: <em>the caption the model conditions on</em>,
+      <em>Frames instead, 25 per second</em>, <em>Haar DCW correction</em>, <em>LM top-p</em>,
+      <em>LM guidance</em>, <em>Reinforce these hints inside the conditioning caption</em>,
+      <em>Locked to 1, cover-nofsq is the only cover task implemented</em>, <em>Choice of DiT</em>,
+      <em>Frozen semantic codes</em>.
+    </p>
+    <p>
+      Roughly forty per cent of the width is a left rail holding three panels that cannot make a
+      sound: file paths with sizes in GB, a sixteen-row capability matrix annotated
+      <em>ACE-Step only</em> and <em>MiniMax only</em>, and the library. That matrix is documentation
+      of the SDK. It is genuinely useful, and it belongs in the README it already appears in, not on
+      the working surface.
+    </p>
+  </div>
+
+  <div class="finding stale">
+    <div class="n">5</div>
+    <h3>The capability matrix is a hard-coded literal, and it has already gone stale<span class="sev stale">now wrong</span></h3>
+    <p>
+      <code>var CAPS</code> in <code>public/app.js</code> is a hand-written table of what each engine
+      accepts, and <code>package.json</code> depends on <code>^0.3.2</code>, so <strong>0.3.3
+      installed itself</strong> and the UI did not notice. Four controls the engine now has are
+      absent, and one constraint the UI presents as a fact is no longer one.
+    </p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>In the addon</th><th>In the UI</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>simpleMode</code></td><td class="no">absent</td><td>one sentence in, the LM writes the rest</td></tr>
+          <tr><td><code>normalizeLoudness</code></td><td class="no">absent</td><td>default true, percentile loudness match</td></tr>
+          <tr><td><code>guidanceScale</code></td><td class="no">absent</td><td>0 auto-resolves, 1.0 turbo and 7.0 base</td></tr>
+          <tr><td><code>taskType: 'lego'</code> + <code>track</code></td><td class="no">absent</td><td>isolate one of 12 stems that follows a source</td></tr>
+          <tr><td><code>audioCoverStrength</code>, full range</td><td class="no">hard-locked to 1</td><td>how much of the run follows the source</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ev">
+      <span class="lab">The locked control is the one with published musical meaning</span>
+      <code>app.js:610</code> sets <code>opts.audioCoverStrength = 1</code> under the comment
+      "The addon rejects anything but 1 until context switching lands", and the UI prints
+      <em>Locked to 1</em>. The 0.3.3 changelog opens with: "Support the full
+      <code>audioCoverStrength</code> range for <code>cover-nofsq</code>. Values below 1 follow the
+      source for that fraction of the diffusion run and finish freely afterwards; 0.5 starts as a
+      cover and diverges halfway."
+      Meanwhile the ACE-Step authors publish a usage table for that exact dial:
+      <strong>0.3 to 0.5 for dramatic genre changes, 0.5 to 0.7 for moderate, 0.7 to 0.9 for
+      subtle</strong>. So the desk disables the only cover control that has documented musical
+      meaning, and explains the lock with a sentence that is no longer true.
+    </div>
+    <p>
+      Fix the symptom by unlocking it. Fix the cause by reading the capability set from the addon at
+      run time, so a semver-compatible bump can never make the interface lie again.
+    </p>
+  </div>
+
+  <div class="finding stale">
+    <div class="n">6</div>
+    <h3>The DCW sliders sit at twenty times the official strength<span class="sev stale">trap</span></h3>
+    <p>
+      <code>dcwEnabled</code> defaults to <strong>true</strong> in the engine, with official scalers
+      of <strong>0.05</strong> and <strong>0.02</strong>. In the Advanced panel the checkbox reads
+      "enabled" and is unchecked, and both sliders sit at <strong>1.00</strong>.
+    </p>
+    <p>
+      The good news, from reading <code>buildBody()</code>: unchecked sends nothing, so the default
+      path is correct and nobody has been getting a wrong render by accident. The trap is what
+      happens when a curious person ticks the box that says "enabled". They do not enable the
+      correction, they enable it at twenty times and fifty times its official strength. A control
+      whose labelled default is not the engine's default is worse than no control.
+    </p>
+  </div>
+
+  <div class="finding hard">
+    <div class="n">7</div>
+    <h3>Making the model invisible needs a translation layer, and there is none<span class="sev hard">blocker</span></h3>
+    <p>
+      This is the part of "the user should not know which model runs" that is easy to miss. The two
+      engines do not read the same structure tags, and the app has one shared Lyrics box with one
+      palette of ten lowercase tags that matches neither published list exactly.
+    </p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Vocabulary</th><th>Tags</th></tr></thead>
+        <tbody>
+          <tr><td>ACE-Step, published</td><td><code>[Intro] [Verse] [Verse 1] [Pre-Chorus] [Chorus] [Bridge] [Outro] [Build] [Drop] [Breakdown] [Instrumental] [Guitar Solo] [Piano Interlude] [Fade Out] [Silence]</code>, plus vocal tags <code>[whispered] [falsetto] [powerful belting] [spoken word] [harmonies] [call and response] [ad-lib]</code> and energy tags <code>[high energy] [building energy] [explosive]</code></td></tr>
+          <tr><td>MiniMax, published</td><td><code>[Intro] [Verse] [Pre Chorus] [Chorus] [Interlude] [Bridge] [Outro] [Post Chorus] [Transition] [Break] [Hook] [Build Up] [Inst] [Solo]</code></td></tr>
+          <tr><td>This app offers</td><td><code>[intro] [verse] [pre-chorus] [chorus] [bridge] [breakdown] [drop] [solo] [outro] [Instrumental]</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Note the collisions: <code>[Pre-Chorus]</code> against <code>[Pre Chorus]</code>,
+      <code>[Instrumental]</code> against <code>[Inst]</code>, <code>[Build]</code> against
+      <code>[Build Up]</code>. <code>[Drop]</code>, <code>[Breakdown]</code> and
+      <code>[Fade Out]</code> appear only in ACE-Step's list; <code>[Hook]</code>,
+      <code>[Post Chorus]</code>, <code>[Transition]</code> and <code>[Break]</code> only in
+      MiniMax's. If the desk is going to route between engines on the user's behalf, it has to
+      rewrite the section markers on the way through, and today it forwards them unchanged.
+    </p>
+    <div class="ev">
+      <span class="lab">One caveat I could not remove</span>
+      MiniMax's published limits (style prompt 10 to 300 characters, lyrics 10 to 3000) come from the
+      hosted Music API, not from this addon. I checked: <code>index.js:668</code> enforces only
+      "caption must be a non-empty string", with no length rule for either engine. So treat 300
+      characters as what the model was served with rather than a local hard limit, and clamp toward
+      it rather than asserting it.
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="n">8</div>
+    <h3>The app offers a control the model authors tell you not to use</h3>
+    <p>
+      The checkbox "Reinforce these hints inside the conditioning caption" sends
+      <code>augmentCaptionWithMetadata</code>, which the addon documents as appending BPM, time
+      signature and key to the internal conditioning caption.
+    </p>
+    <div class="quote">
+      Avoid: BPM, key, or tempo data in the caption field.
+      <span class="src">ACE-Step 1.5, official songwriting prompting rules, under Caption Format &amp; Rules</span>
+    </div>
+    <p>
+      These may not be the same path: one is a user typing "128 bpm" into the caption, the other is
+      the engine assembling its own conditioning string. I have not measured it, so I am not calling
+      it a bug. I am saying a control that does the one thing the authors list under
+      <em>critical do-nots</em> should be measured before it stays in a consumer surface, and it
+      certainly should not be presented as "reinforce", which reads like an improvement.
+    </p>
+  </div>
+
+  <div class="finding">
+    <div class="n">9</div>
+    <h3>One take per click, where the authors say two to four</h3>
+    <p>
+      The desk renders a single take and its repaint lives inside an expert Edit chain, a montage
+      table with start and end fields in seconds that you fill in before you have heard anything.
+      Both of the authors' workflow rules point the other way.
+    </p>
+    <div class="quote">
+      Always generate 2-4 versions at once. Fix, Don't Redo: use Repaint rather than regenerating
+      entirely.
+      <span class="src">ACE-Step 1.5, musicians guide, workflow</span>
+    </div>
+    <p>
+      At 0.29x on turbo-q4, three variations of a 30 second idea cost about 26 seconds of compute
+      in total. Picking from three is a completely different experience from judging one, especially
+      for someone with no vocabulary to describe what they would change.
+    </p>
+  </div>
+
+  <div class="finding">
+    <div class="n">10</div>
+    <h3>The length default is set for a sound effect, not a song</h3>
+    <p>
+      The Length slider defaults to <strong>24 s</strong> over a 4 to 240 range. For anything with
+      vocals that is far too short, and the authors are specific about why.
+    </p>
+    <div class="quote">
+      2 verses + 2 choruses: 120-150s minimum. Plus a bridge: 180-240s. Full production with intro
+      and outro: 210-270s. When in doubt, estimate longer. A song too short feels rushed.
+      <span class="src">ACE-Step 1.5, duration calculation</span>
+    </div>
+    <p>
+      They also give the lyric budget that goes with it: about <strong>90 to 140 words for a 47
+      second track</strong>, and 6 to 10 syllables per line. None of that guidance is anywhere in the
+      interface, and the Lyrics box is an empty textarea with a two-line placeholder.
+    </p>
+  </div>
+
+  <div class="finding">
+    <div class="n">11</div>
+    <h3>Export is a multi-select listbox of thirteen formats</h3>
+    <p>
+      A four-row <code>&lt;select multiple&gt;</code> holding wav, flac, alac, aiff, caf, m4a, aac,
+      opus, ogg, ac3, wma, mp2, pcm. Multi-select listboxes are the least discoverable control on the
+      web, and nobody making a song for a video needs alac and mp2. The one format a normal person
+      will look for is mp3, which the vendored ffmpeg cannot write. Say that once, offer wav and m4a,
+      and put the rest behind Advanced.
+    </p>
+  </div>
+
+  <div class="finding">
+    <div class="n">12</div>
+    <h3>Two features are unreachable on this machine and the UI does not say so</h3>
+    <p>
+      Only <code>turbo-q4</code> is in <code>~/.qvac/models</code>. Flow-Edit is turbo-only so it
+      works, but <strong>lego stems require the base DiT</strong>, and the addon's own README says
+      "The base DiT is not in the registry <code>ditVariant</code> set yet", so it has to be supplied
+      as an explicit path. The desk's resolver only knows the three registry variants, which means
+      the stem feature cannot be reached from this app at all today, even though the engine has it.
+      Worth stating in the interface as a missing file with an action, the way the MiniMax folder
+      already is.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="design">
+  <h2>Part two <span>&middot;</span> What I would build instead</h2>
+  <p class="lede">
+    Keep every ACE-Step capability. Change what the screen is organised around: from
+    <em>which engine and which parameter</em> to <em>describe it, hear it, fix it</em>.
+  </p>
+
+  <div class="verdict" style="margin-top:32px">
+    <p>Two doors, one song sheet.</p>
+    <p>
+      There is a brief box for the person who wants to talk about their game, and there are the
+      fields for the person who already knows they want 76 BPM in A minor. Both write the
+      <strong>same object</strong>, and the sheet is what renders. So the brief box is not a
+      beginner mode with a ceiling, and the fields are not an expert mode you graduate into. The
+      brief fills the sheet, you read what it decided, and you overrule any line of it.
+    </p>
+  </div>
+
+  <p>
+    That single object is what stops this becoming two products. A wizard that hides the fields has
+    to grow its own controls forever. A form with a "help me write this" button leaves the newcomer
+    staring at the form. Making the sheet the shared artefact means the newcomer sees, in the words
+    the model actually uses, what their sentence turned into, which is the only way they ever learn
+    what "fingerpicked" or <code>[building energy]</code> changes.
+  </p>
+
+  <div class="ba">
+    <div class="now">
+      <h4>Organised now</h4>
+      <ul>
+        <li>Engine first, in the top bar, by model name</li>
+        <li>Mode second: Compose, Cover, Edit chain</li>
+        <li>Then a form of every parameter the engine accepts</li>
+        <li>Left rail: what the machine has, and a capability matrix</li>
+        <li>Right rail: takes, as a log</li>
+        <li>Render is one button at the bottom, disabled by default</li>
+      </ul>
+    </div>
+    <div class="next">
+      <h4>Organised instead</h4>
+      <ul>
+        <li>One prompt field and a Make button that is never disabled</li>
+        <li>Starting points as cards that fill the field with a working sentence</li>
+        <li>The song sheet the model composed, shown and editable</li>
+        <li>Takes are the centre, each with verbs: longer, change this part, restyle, cover, stem</li>
+        <li>Engine chosen by the task, named only in the status line, after the fact</li>
+        <li>Everything else behind one Advanced door, at the engine's real defaults</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>The first screen</h3>
+  <div class="sketch">
+    <div class="sk-bar"><span class="sk-dot"></span><span class="sk-dot"></span><span class="sk-dot"></span>
+      <span style="margin-left:8px">QVAC Music Desk</span>
+      <span style="margin-left:auto;color:var(--fg-4)">on this machine &middot; nothing uploaded</span>
+    </div>
+    <div class="sk-body">
+      <div class="sk-prompt">
+        <span class="ph">Tell me what this music is for. A paragraph is fine.</span>
+      </div>
+      <div class="sk-row">
+        <div class="sk-card"><b>Cinematic trailer bed</b><span>strings, no vocals, 60 s</span></div>
+        <div class="sk-card"><b>Lo-fi loop to study to</b><span>instrumental, 90 s</span></div>
+        <div class="sk-card"><b>Wedding salsa</b><span>male lead, 150 s</span></div>
+        <div class="sk-card"><b>Game exploration bed</b><span>choir builds, 120 s</span></div>
+      </div>
+      <span class="sk-btn">Make three</span>
+      <span style="margin-left:14px;font-size:13.5px;color:var(--fg-3)">or write the sheet yourself &rarr;</span>
+      <p class="sk-note">
+        About 25 seconds on this machine for three minutes of music. The sheet below is what
+        actually renders, and it is yours to edit either way.
+      </p>
+
+      <div class="sk-take">
+        <span class="sk-verb pri">Play</span>
+        <div class="sk-wave"></div>
+        <span style="font-size:12.5px;color:var(--fg-4);white-space:nowrap">0:36</span>
+      </div>
+      <div class="sk-verbs">
+        <span class="sk-verb pri">More like this</span>
+        <span class="sk-verb">Make it longer</span>
+        <span class="sk-verb">Change this part</span>
+        <span class="sk-verb">Restyle it</span>
+        <span class="sk-verb">Use as reference</span>
+        <span class="sk-verb">Pull out a stem</span>
+        <span class="sk-verb">Save</span>
+      </div>
+      <p class="sk-note">Every ACE-Step operation is here. None of them is called by its API name.</p>
+    </div>
+  </div>
+
+  <h3>Worked example, on your brief, measured</h3>
+  <p>
+    Your example is a good test because it is entirely non-technical and it still contains four
+    hard requirements: a use case, an atmosphere, a place, and a specific musical event.
+  </p>
+  <div class="quote">
+    I want to make music for my video game, an exploration game, the music should give a mystical
+    atmosphere, full of secrets, I am going to explore temples, I want several voices that rise in
+    power.
+    <span class="src">Your words, translated to English because the model is English-conditioned. That translation is itself a job for the expander, not for you.</span>
+  </div>
+  <p>
+    Here is what the sheet should look like coming out of that, written to the authors' rules. The
+    interesting part is the last requirement: <em>several voices rising in power</em> is not a caption
+    word, it is three structure tags and a section.
+  </p>
+  <pre><b>Caption</b>   Mystical exploration score for a ruined temple, breathy layered female
+          choir rising over low sustained strings, hand percussion, deep
+          stone-room reverb, patient and secretive
+          <span style="color:#5A655F">24 words, prose, no tempo or key in it, per the authors' rules</span>
+
+<b>Lyrics</b>    [Intro]
+          [low energy] [whispered]
+
+          [Verse]
+          stone remembers every name
+
+          [Build]
+          [building energy] [harmonies]        <span style="color:#5A655F">&larr; "voices rising in power"</span>
+          deeper than the light can reach
+
+          [Chorus]
+          [powerful belting] [harmonies]
+          OPEN WHAT WAS SEALED AWAY            <span style="color:#5A655F">&larr; uppercase is intensity</span>
+          (open, open)                         <span style="color:#5A655F">&larr; parentheses are backing vocals</span>
+
+          [Outro]
+          [Fade Out]
+
+<b>Tempo</b>     76        <span style="color:#5A655F">mid-slow, from the authors' 60-80 band for slow</span>
+<b>Key</b>       A minor   <span style="color:#5A655F">one of the five they list as most stable</span>
+<b>Length</b>    60 s      <span style="color:#5A655F">a game bed, from the section count</span></pre>
+  <p>
+    I ran both routes on that brief, same seed, on this machine. Both work. They fail differently,
+    which is the whole argument for keeping both doors.
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th></th><th>Simple Mode on the raw brief</th><th>The sheet above</th></tr></thead>
+      <tbody>
+        <tr><td>You wrote</td><td>the paragraph, nothing else</td><td>the paragraph, then edited two lines</td></tr>
+        <tr><td class="num">Audio produced</td><td class="num">187.44 s</td><td class="num">59.84 s, asked for 60</td></tr>
+        <tr><td class="num">Compute</td><td class="num">22 s, 0.12x</td><td class="num">7 s, 0.12x</td></tr>
+        <tr><td class="num">Peak</td><td class="num">-0.9 dBFS</td><td class="num">-0.9 dBFS</td></tr>
+        <tr><td class="num">Per-5s RMS spread</td><td class="num">14.4 dB over 37 blocks</td><td class="num">5.4 dB over 11 blocks</td></tr>
+        <tr><td>Length control</td><td class="no">none, it chose 3 minutes</td><td class="yes">exact</td></tr>
+        <tr><td>Can you change one word and re-render</td><td class="no">no, only reseed</td><td class="yes">yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ev">
+    <span class="lab">Read the spread honestly</span>
+    14.4 dB against 5.4 dB is not a quality verdict. The tracks are different lengths, and a longer
+    track has more blocks and therefore more chance of variation. Looking at the actual block
+    sequence, Simple Mode's figure is mostly its intro ramp (-25.6, -19.8, then about -13 for the
+    body) plus one dip to -19.9 around two minutes. Both takes are arranged rather than looped,
+    which is the thing worth knowing. What is not a judgement call is that the raw brief produced
+    three minutes when nobody asked for three minutes.
+  </div>
+  <p>
+    The other thing this run settles: <strong>0.12x</strong>. Three minutes of music in twenty-two
+    seconds. That is fast enough for the whole design above to feel like an instrument rather than a
+    render queue, and fast enough that generating three variations per click costs nothing worth
+    protecting the user from.
+  </p>
+
+  <h3>The two doors, side by side</h3>
+  <p>
+    You asked whether an LLM should reformulate the request, and you added that it must not be the
+    only way in. That makes three routes, not two. All three write the same sheet, so none of them
+    is a separate product.
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th></th><th>Surprise me<br><span style="text-transform:none;letter-spacing:0;color:var(--fg-3)">engine Simple Mode</span></th><th>Describe it<br><span style="text-transform:none;letter-spacing:0;color:var(--fg-3)">local LLM writes the sheet</span></th><th>Write it<br><span style="text-transform:none;letter-spacing:0;color:var(--fg-3)">you fill the sheet</span></th></tr></thead>
+      <tbody>
+        <tr><td>Cost to add</td><td class="yes">one flag, zero new models</td><td>one small model, 0.6B to 1.7B through <code>@qvac/sdk</code></td><td class="yes">already built, it is today's form</td></tr>
+        <tr><td>What you see before it renders</td><td class="no">nothing, it is internal</td><td class="yes">the whole sheet, editable</td><td class="yes">the whole sheet, yours</td></tr>
+        <tr><td>Iterating</td><td class="no">reseed and hope</td><td class="yes">change a word, render again</td><td class="yes">total</td></tr>
+        <tr><td>Length control</td><td class="no">none, measured below</td><td class="yes">exact</td><td class="yes">exact</td></tr>
+        <tr><td>Needs music vocabulary</td><td class="yes">none</td><td class="yes">none</td><td class="no">yes, all of it</td></tr>
+        <tr><td>Who it is for</td><td>the first thirty seconds of using this</td><td>the default, everyone</td><td>you, when you already know</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ev">
+    <span class="lab">Why Simple Mode cannot be the only route: it overrides the length you ask for</span>
+    Measured today, same query and seed, only the flag changing. Plain call, asked 8 s, produced
+    <strong>7.2 s</strong>. Simple Mode, asked 8 s, produced <strong>28.2 s</strong>. Simple Mode,
+    asked 16 s, produced <strong>36.2 s</strong>, twice, so it is repeatable rather than random.
+    The README says "Anything you set is kept", and for <code>duration</code> that does not hold.
+    Anyone who needs 30 seconds for a video cannot use Simple Mode to get it.
+  </div>
+  <p>
+    So: <strong>Surprise me</strong> is Simple Mode, one button, promising a song and not a length.
+    <strong>Describe it</strong> is the default, because a visible sheet is what turns a newcomer
+    into someone who understands the tool. <strong>Write it</strong> is the same sheet with an empty
+    brief box, which is what you use when you already know you want 76 BPM in A minor and do not
+    want anything reinterpreting that.
+  </p>
+
+  <h4>What the expert door has to guarantee</h4>
+  <p>
+    This is the half that is easy to lose when a tool gets friendlier, so it is worth stating as
+    requirements rather than as a promise.
+  </p>
+  <ul style="max-width:72ch;color:var(--fg-2);font-size:15.5px">
+    <li><strong>Nothing rewrites a field you touched.</strong> Once a field is yours it is yours,
+      including on a re-render, including when you change the brief. Mark it and never silently
+      recompute it.</li>
+    <li><strong>The brief box is optional and stays empty.</strong> No modal, no wizard step, no
+      "are you sure you want the advanced view". The sheet is the screen.</li>
+    <li><strong>Every parameter the engine accepts is reachable.</strong> That is what today's app
+      already does well, and it must survive the redesign. Behind one Advanced door, but reachable,
+      at the engine's real defaults.</li>
+    <li><strong>The raw caption goes through untouched.</strong> Someone who wants to type a
+      comma-separated tag list, which ACE-Step also supports, gets exactly their string sent.</li>
+    <li><strong>The seed stays visible.</strong> Reproducibility is the expert's whole workflow and
+      the current app is already right about this.</li>
+  </ul>
+
+  <h3>The expander's system prompt, built from the authors' own rules</h3>
+  <p>
+    These are not my preferences. Every line comes from the ACE-Step prompting rules or the musicians
+    guide, so the expander teaches the model's documented conventions rather than my guesses.
+  </p>
+  <pre><b># Caption</b>
+Prose, not a comma list. A short paragraph describing the whole song's vibe.
+15 to 25 words. 5 to 12 specific keywords; past 15 they dilute each other.
+Specific beats vague: "grand piano" over "piano", "fingerpicked acoustic
+guitar" over "guitar". Cover style, emotion, instruments, texture, era,
+vocal character. NEVER put BPM, key or tempo in the caption.
+No conflicting descriptors unless framed in time ("starts soft, turns intense").
+
+<b># Lyrics</b>
+Structure tags in this field, never in the caption. This is what the LM reads
+when it plans the arrangement.
+Sections: [Intro] [Verse] [Pre-Chorus] [Chorus] [Bridge] [Build] [Drop]
+          [Breakdown] [Guitar Solo] [Piano Interlude] [Outro] [Fade Out]
+Voice:    [whispered] [falsetto] [powerful belting] [harmonies] [ad-lib]
+Energy:   [high energy] [building energy] [explosive]
+6 to 10 syllables per line. Similar counts on parallel lines. Blank line
+between sections. UPPERCASE for intensity, (parentheses) for backing vocals.
+About 90 to 140 words per 47 seconds of song.
+Instrumental only: the single line [Instrumental].
+
+<b># Metadata</b>
+bpm             slow 60-80, mid 90-120, fast 130-180. Leave unset to let the LM infer.
+keyscale        C, G, D, Am, Em are the most stable.
+timesignature   4/4 default, 3/4 waltz, 6/8 swing.
+duration        from the section count, not from a guess:
+                intro/outro 5-10 s each, instrumental sections 5-15 s,
+                2 verses + 2 choruses = 120-150 s,
+                add a bridge = 180-240 s, full production = 210-270 s.
+                When in doubt go longer. Too short sounds rushed.</pre>
+  <p>
+    Two things this buys beyond convenience. It lets the app fill the <em>Lyrics</em> field with real
+    structure, which is the single measured quality lever we know of on this engine. And it gives the
+    user a sheet they can argue with, which is how they learn what "fingerpicked" changes.
+  </p>
+
+  <h3>Routing, so the engine name never appears in a question</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>What the user did</th><th>Engine</th><th>How it is surfaced</th></tr></thead>
+      <tbody>
+        <tr><td>Dropped a track in, or acted on a take</td><td>ACE-Step, forced</td><td>nothing to say, it is the only engine that can</td></tr>
+        <tr><td>Described music, default</td><td>ACE-Step turbo-q4</td><td>nothing, this is the fast path at 0.29x</td></tr>
+        <tr><td>Asked for the best vocals</td><td>MiniMax-Music3</td><td>one toggle: "Take longer, richer vocals. About 2 minutes for a 30 second clip on this machine."</td></tr>
+        <tr><td>Wants exact reproducibility</td><td>either</td><td>the seed, already good in the current app</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Keep the model names in the status line and on the take, after the render, where they are
+    provenance rather than a decision. The current app already reports the resolved backend and the
+    GPU fallback reason, which is exactly the right instinct pointed at the wrong moment.
+  </p>
+
+  <h3>Keep the ACE features, address them as verbs on something you have heard</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Call today</th><th>Where it lives now</th><th>What the user should see</th></tr></thead>
+      <tbody>
+        <tr><td><code>referenceAudio</code></td><td>an "Audio in" slot in a gated card</td><td><strong>Use as reference</strong> on a library item or a take</td></tr>
+        <tr><td><code>taskType: 'cover-nofsq'</code></td><td>Cover mode, strength locked to 1</td><td><strong>Cover it</strong>, then three labelled choices: dramatic, moderate, subtle, mapped to the authors' 0.3-0.5, 0.5-0.7, 0.7-0.9</td></tr>
+        <tr><td><code>repaint</code></td><td>Edit chain, numeric start and end</td><td><strong>Change this part</strong>: drag a range on the waveform, say what should happen there</td></tr>
+        <tr><td>repaint on appended silence</td><td>Edit chain, "Extend the end"</td><td><strong>Make it longer</strong>, in short steps, warning that the model resolves rather than continues</td></tr>
+        <tr><td><code>flowEdit</code></td><td>Edit chain, from and to captions plus nMin, nMax, nAvg</td><td><strong>Restyle it</strong>: the old description is filled in, you write the new one</td></tr>
+        <tr><td><code>taskType: 'lego'</code></td><td>absent</td><td><strong>Pull out a stem</strong>, twelve named layers, with the base DiT stated as a prerequisite</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The chain itself is worth keeping, because ordered operations are real and the current
+    implementation already respects order. It just should not be the way you reach a single repaint.
+    Let each verb apply immediately to a take, and let the chain be what you open when you want to
+    queue several.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="plan">
+  <h2>Part three <span>&middot;</span> The order I would do it in</h2>
+  <p class="lede">
+    Ranked by what a newcomer feels per hour of work. The first item is half a day and no new
+    dependency, and it is the one the model authors recommend as the entry point.
+  </p>
+
+  <div class="plan">
+    <div class="step">
+      <div>
+        <h4>Wire Simple Mode to a Surprise me button</h4>
+        <p>One flag, one button, no new model, no download. Say "a song" and not a length, because it overrides the length.</p>
+      </div>
+      <span class="cost">half a day</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>The prompt bar, the starting-point cards, and a Make button that is never disabled</h4>
+        <p>Replaces the empty caption box and the 51-chip wall as the entry point. The chips survive inside the song sheet as edits.</p>
+      </div>
+      <span class="cost">1 to 2 days</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>The song sheet as the shared object, written by a small local LLM</h4>
+        <p>Caption, lyrics with structure, tempo, key, duration, editable before you render, and the same sheet is the expert door with the brief box left empty. A touched field is never recomputed. System prompt as specified above.</p>
+      </div>
+      <span class="cost">2 to 3 days</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>Verbs on takes, replacing the mode navigation</h4>
+        <p>Same six operations, addressed to the thing you just heard. Waveform range selection for repaint.</p>
+      </div>
+      <span class="cost">2 to 3 days</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>Variations: two to four seeds per click</h4>
+        <p>At 0.29x this is nearly free and it changes the whole feel of the tool. The authors recommend it outright.</p>
+      </div>
+      <span class="cost">half a day</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>Unlock cover strength, fix the DCW defaults, add the four missing controls</h4>
+        <p>0.05 and 0.02 for DCW. Three labelled cover strengths. Add normalizeLoudness, guidanceScale, lego.</p>
+      </div>
+      <span class="cost">a day</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>Read capabilities from the addon at run time</h4>
+        <p>Deletes the class of bug that produced findings five and six. A semver bump can no longer make the UI lie.</p>
+      </div>
+      <span class="cost">a day</span>
+    </div>
+    <div class="step">
+      <div>
+        <h4>Translate structure tags per engine on the way out</h4>
+        <p>Only needed once the desk routes engines on the user's behalf. Without it, invisible routing sends MiniMax tags it does not document.</p>
+      </div>
+      <span class="cost">half a day</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="facts">
+  <h2>Part four <span>&middot;</span> Every number, so you can check me</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Claim</th><th class="num">Value</th><th>Where it came from</th></tr></thead>
+      <tbody>
+        <tr><td>Simple Mode, one sentence, audio produced</td><td class="num">36.24 s</td><td>measured today, ACE-Step turbo-q4, seed 1234</td></tr>
+        <tr><td>Simple Mode, compute for that take</td><td class="num">10.67 s, 0.29x</td><td>measured today</td></tr>
+        <tr><td>Simple Mode, peak and RMS</td><td class="num">-0.9 / -16.9 dBFS</td><td>measured today, in process on the Int16 PCM</td></tr>
+        <tr><td>Simple Mode, per-5s RMS spread</td><td class="num">7.40 dB</td><td>measured today, one take</td></tr>
+        <tr><td>Hand-written structure tags, spread</td><td class="num">4.74 dB</td><td>our 0.17 lab, earlier measurement</td></tr>
+        <tr><td>Caption only, no structure, spread</td><td class="num">0.18 to 1.05 dB</td><td>our 0.17 lab, earlier measurement</td></tr>
+        <tr><td>Plain call honours duration</td><td class="num">asked 8 s, got 7.2 s</td><td>measured today</td></tr>
+        <tr><td>Simple Mode ignores duration</td><td class="num">asked 8 got 28.2, asked 16 got 36.2</td><td>measured today, repeatable per seed</td></tr>
+        <tr><td>Your brief, Simple Mode, audio</td><td class="num">187.44 s</td><td>measured today, seed 9090</td></tr>
+        <tr><td>Your brief, Simple Mode, compute</td><td class="num">22 s, 0.12x</td><td>measured today</td></tr>
+        <tr><td>Your brief, structured sheet, audio</td><td class="num">59.84 s, asked 60</td><td>measured today, seed 9090</td></tr>
+        <tr><td>Your brief, structured sheet, compute</td><td class="num">7 s, 0.12x</td><td>measured today</td></tr>
+        <tr><td>Your brief, spreads</td><td class="num">14.4 dB vs 5.4 dB</td><td>measured today, different lengths, see the caveat</td></tr>
+        <tr><td>MiniMax compute cost</td><td class="num">4.37x</td><td>measured on this machine, 7 September 2026</td></tr>
+        <tr><td>Official DCW scalers</td><td class="num">0.05 and 0.02</td><td><code>index.d.ts</code>, GenerateOptions</td></tr>
+        <tr><td>ACE-Step LM defaults</td><td class="num">temperature 0.85, top-p 0.9</td><td><code>index.d.ts</code>, GenerateOptions</td></tr>
+        <tr><td>Lego stems available</td><td class="num">12</td><td><code>index.js:122</code>, LEGO_TRACKS</td></tr>
+        <tr><td>Caption length enforced by the addon</td><td class="num">non-empty only</td><td><code>index.js:668</code></td></tr>
+        <tr><td>DiT variants in the registry</td><td class="num">3, no base</td><td><code>models.js</code>, DIT_VARIANTS</td></tr>
+        <tr><td>DiT variants on this disk</td><td class="num">1, turbo-q4</td><td><code>~/.qvac/models</code></td></tr>
+        <tr><td>Style chips in the current UI</td><td class="num">51 in 5 groups</td><td><code>public/app.js</code>, CHIPS</td></tr>
+        <tr><td>Export formats offered</td><td class="num">13, no mp3</td><td><code>public/app.js</code>, FORMATS</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Sources</h3>
+  <p style="font-size:14.5px;color:var(--fg-2)">
+    Model authors and API documentation used above, in addition to the installed addon:
+    <a href="https://github.com/ace-step/ACE-Step-1.5/blob/main/.claude/skills/acestep-songwriting/SKILL.md">ACE-Step 1.5 songwriting prompting rules</a>,
+    <a href="https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/ace_step_musicians_guide.md">ACE-Step 1.5 musicians guide</a>,
+    <a href="https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/Tutorial.md">ACE-Step 1.5 tutorial</a>,
+    <a href="https://deapi.ai/blog/ace-step-1-5-prompting-guide-how-to-write-tags-structure-lyrics-and-generate-better-music">ACE-Step 1.5 prompting guide</a>,
+    <a href="https://github.com/MiniMax-AI/skills/blob/main/skills/frontend-dev/references/minimax-music-guide.md">MiniMax music guide</a>,
+    <a href="https://platform.minimax.io/docs/api-reference/music-generation">MiniMax music generation API reference</a>,
+    <a href="https://www.minimax-music.com/blog/minimax-music-prompt-guide">MiniMax music prompt guide</a>,
+    <a href="https://fal.ai/models/fal-ai/minimax-music/v1.5/api">MiniMax Music v1.5 on fal.ai</a>.
+  </p>
+</section>
+
+<footer>
+  <span>QVAC Music Desk, UX review. Written 9 September 2026 against @qvac/audiogen-ggml 0.3.3.</span>
+  <span>test/37-music-desk/docs/ux-review.html</span>
+</footer>
+
+</div>
+</body>
+</html>
