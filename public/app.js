@@ -215,6 +215,15 @@
       var w = (b.getAttribute('data-w') || '').toLowerCase()
       b.classList.toggle('on', cap.indexOf(w) >= 0)
     })
+    // A chosen word hidden behind the count would be invisible and unremovable,
+    // so its row opens and stays open.
+    Array.prototype.forEach.call(document.querySelectorAll('#presets .preset-row'), function (row) {
+      if (row.querySelector('.chip-word.extra.on')) {
+        row.classList.add('all')
+        var more = row.querySelector('.chip-more')
+        if (more) more.textContent = 'less'
+      }
+    })
   }
 
   // Every edit marks its field. This is the promise that makes one sheet serve
@@ -277,19 +286,35 @@
       lang.appendChild(el('option', null, esc(l[1]))).value = l[0]
     })
 
-    // The presets. In Manual mode this is the whole point, so it is a plain
-    // labelled row per dimension rather than something behind a disclosure.
-    // A chip toggles its word in and out of the caption.
+    // The presets, six per row with the rest behind a count.
+    //
+    // Fifty-two equal-weight chips on one screen is an unsorted list, not an
+    // interface. The guidance is to show the top five to seven and collapse the
+    // remainder, because more choices cost more time and working memory holds
+    // about seven things. See .claude/skills/ui-ux-bible.
+    var VISIBLE = 6
     $('presets').innerHTML = ''
     v.chips.forEach(function (g) {
-      var row = el('div', 'preset-row', '<span class="preset-label">' + esc(g[0]) + '</span>')
+      var name = g[0]
+      var words = g[1]
+      var row = el('div', 'preset-row')
+      row.appendChild(el('span', 'preset-label', esc(name)))
       var wrap = el('div', 'preset-chips')
-      g[1].forEach(function (word) {
-        var b = el('button', 'chip-word', esc(word))
-        b.onclick = function () { toggleWord(word); }
+      words.forEach(function (word, i) {
+        var b = el('button', 'chip-word' + (i >= VISIBLE ? ' extra' : ''), esc(word))
         b.setAttribute('data-w', word)
+        b.onclick = function () { toggleWord(word) }
         wrap.appendChild(b)
       })
+      if (words.length > VISIBLE) {
+        var more = el('button', 'chip-more', '+' + (words.length - VISIBLE))
+        more.title = 'Show the other ' + (words.length - VISIBLE) + ' ' + name.toLowerCase() + ' words'
+        more.onclick = function () {
+          var open = row.classList.toggle('all')
+          more.textContent = open ? 'less' : '+' + (words.length - VISIBLE)
+        }
+        wrap.appendChild(more)
+      }
       row.appendChild(wrap)
       $('presets').appendChild(row)
     })

@@ -177,11 +177,22 @@ input[type=range]{width:100%;accent-color:var(--acqua);background:none;border:0;
 .chip-group h4{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-4);margin:0 0 5px;font-weight:500}
 .chip-row{display:flex;flex-wrap:wrap;gap:5px}
 .chip-word{
-  cursor:pointer;font-size:11.5px;padding:3px 9px;border-radius:999px;
+  cursor:pointer;font-size:12px;padding:5px 11px;border-radius:999px;color:var(--fg-2);
   background:var(--card);border:1px solid var(--line);transition:all .3s var(--ease);
+  /* 24px minimum target, WCAG 2.2 SC 2.5.8. */
+  min-height:26px;
 }
-.chip-word:hover{border-color:var(--acqua-dim);color:var(--fg)}
-.chip-word.on{border-color:var(--acqua);color:var(--acqua)}
+.chip-word:hover{border-color:var(--line-hi);color:var(--fg)}
+/* Chosen has to read without hovering it, so it is a fill and not a border tint. */
+.chip-word.on{background:var(--acqua);border-color:var(--acqua);color:#08120f;font-weight:500}
+.chip-word.extra{display:none}
+.preset-row.all .chip-word.extra{display:inline-block}
+.chip-more{
+  cursor:pointer;font-size:11px;padding:5px 10px;border-radius:999px;
+  background:none;border:1px dashed var(--line-hi);color:var(--fg-4);min-height:26px;
+  transition:all .3s var(--ease);
+}
+.chip-more:hover{color:var(--acqua);border-color:var(--acqua-dim)}
 
 .tagbar{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .taggroup{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
