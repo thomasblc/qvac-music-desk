@@ -166,7 +166,9 @@ select{cursor:pointer}
 select:disabled,input:disabled{opacity:.5;cursor:not-allowed}
 #brief{font-size:var(--t-lg);min-height:88px;padding:var(--s-3)}
 
-.starters{display:flex;flex-wrap:wrap;gap:var(--s-1);margin-top:var(--s-3)}
+.starters{display:flex;flex-wrap:wrap;gap:var(--s-1);margin-top:var(--s-3);align-items:center}
+.starters-label{font-size:var(--t-xs);letter-spacing:.8px;text-transform:uppercase;
+  color:var(--fg-3);margin-right:var(--s-2)}
 .starter{
   cursor:pointer;background:var(--card);border:1px solid var(--line);color:var(--fg-2);
   border-radius:var(--r-pill);padding:var(--s-1) var(--s-3);min-height:28px;

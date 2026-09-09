@@ -207,6 +207,40 @@
       : 'ready, ' + n + ' takes of ' + secs(d) + ', about ' + secs(est)
   }
 
+  /**
+   * Five examples drawn from the pool, plus a chip that draws five more. Six
+   * fixed titles under the brief read as a menu, and the brief accepts anything:
+   * the pool exists to show how wide that is, not to constrain it. Five, not
+   * six, because the titles vary in length and six wrapped the reroll chip onto
+   * a line of its own.
+   */
+  function renderStarters () {
+    var pool = (st.vocab.starters || []).slice()
+    var pick = []
+    while (pick.length < 5 && pool.length) {
+      pick.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
+    }
+    $('starters').innerHTML = ''
+    $('starters').appendChild(el('span', 'starters-label', 'Examples'))
+    pick.forEach(function (item) {
+      var b = el('button', 'starter', esc(item.title))
+      b.title = item.brief
+      b.onclick = function () {
+        $('brief').value = item.brief
+        $('brief').focus()
+        renderSheetSummary()
+        renderRenderButton()
+      }
+      $('starters').appendChild(b)
+    })
+    if ((st.vocab.starters || []).length > 5) {
+      var more = el('button', 'chip-more', 'others')
+      more.title = 'Draw five other examples. Anything you can describe works, these are only a start.'
+      more.onclick = renderStarters
+      $('starters').appendChild(more)
+    }
+  }
+
   /** Adds or removes one preset word from the caption. */
   function toggleWord (word) {
     var box = $('caption')
@@ -270,17 +304,7 @@
   function fillStatics () {
     var v = st.vocab
 
-    $('starters').innerHTML = ''
-    v.starters.forEach(function (item) {
-      var b = el('button', 'starter', esc(item.title))
-      b.title = item.brief
-      b.onclick = function () {
-        $('brief').value = item.brief
-        $('brief').focus()
-        renderSheetSummary()
-      }
-      $('starters').appendChild(b)
-    })
+    renderStarters()
 
     var keys = $('keyscale')
     keys.innerHTML = ''
