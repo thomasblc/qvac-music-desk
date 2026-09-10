@@ -698,6 +698,13 @@ footer{margin-top:80px;padding-top:28px;border-top:1px solid var(--line);font-si
     These are not my preferences. Every line comes from the ACE-Step prompting rules or the musicians
     guide, so the expander teaches the model's documented conventions rather than my guesses.
   </p>
+  <p><b>Corrected 2026-09-09.</b> The caption block below was wrong, and it cost real quality for
+    weeks. The authors' own tutorial says the format is flexible, and all five of their published
+    example sets are comma-separated keyword lists of twelve to fourteen keywords with the genre
+    first. Prose spends the budget on words the model cannot use. Measured, same seed: a
+    five-keyword style locked a tempo nobody asked for at correlation 0.709, and the same music
+    written as twelve keywords measured 0.253. The shipped rules now live in
+    <code>lib/caption.mjs</code> and in the README, not in this paragraph.</p>
   <pre><b># Caption</b>
 Prose, not a comma list. A short paragraph describing the whole song's vibe.
 15 to 25 words. 5 to 12 specific keywords; past 15 they dilute each other.
