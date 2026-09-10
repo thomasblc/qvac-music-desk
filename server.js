@@ -223,10 +223,58 @@ async function probe (file) {
 // second 22 GB model pair on the same GPU is not a feature, it is a stall.
 // ---------------------------------------------------------------------------
 
+/**
+ * Takes that survived a restart. Each finished render writes `take-<id>.json`
+ * next to its audio, so the list can be rebuilt instead of forgotten. A record
+ * whose audio has been deleted is skipped rather than shown as a dead card.
+ */
+function restoreTakes () {
+  let names = []
+  try { names = fs.readdirSync(OUT) } catch { return [] }
+  const takes = []
+  const seen = new Set()
+  for (const name of names) {
+    if (!/^take-[0-9a-f]+\.json$/.test(name)) continue
+    try {
+      const take = JSON.parse(fs.readFileSync(path.join(OUT, name), 'utf8'))
+      const files = (take.files || []).filter((f) => fs.existsSync(f.file || f))
+      if (!files.length) continue
+      seen.add(take.id)
+      takes.push({ ...take, files })
+    } catch {}
+  }
+  // Audio with no record: renders made before takes were persisted, or a
+  // record deleted by hand. The job file next to it says what it was, and a
+  // card with no statistics still plays.
+  for (const name of names) {
+    const m = name.match(/^take-([0-9a-f]+)\.(wav|flac|m4a|ogg|opus|aiff|caf|aac|alac|ac3|wma|mp2|pcm)$/)
+    if (!m || seen.has(m[1])) continue
+    seen.add(m[1])
+    const audio = path.join(OUT, name)
+    let job = {}
+    try { job = JSON.parse(fs.readFileSync(path.join(OUT, `job-${m[1]}.json`), 'utf8')) } catch {}
+    takes.push({
+      id: m[1],
+      engine: job.engine || 'acestep',
+      task: job.mode || 'compose',
+      mode: job.mode || 'compose',
+      caption: job.caption || 'recovered take',
+      sheet: null,
+      notes: [],
+      opts: job.opts || {},
+      operations: [],
+      files: [{ format: path.extname(name).slice(1), file: audio }],
+      recovered: true,
+      at: fs.statSync(audio).mtime.toISOString()
+    })
+  }
+  return takes.sort((a, b) => String(b.at).localeCompare(String(a.at)))
+}
+
 const state = {
   models: discover(),
   library: [],   // imported audio
-  takes: [],     // renders
+  takes: restoreTakes(),
   job: null,     // the live one
   queue: [],     // variations waiting their turn, one engine at a time
   // What the INSTALLED addon accepts, read at startup by engine/caps.cjs rather
@@ -571,6 +619,10 @@ async function runOne (body) {
           at: new Date().toISOString()
         }
         state.takes.unshift(take)
+        // The take record goes to disk next to its audio. In memory only, the
+        // list was wiped by every server restart while the wavs stayed behind,
+        // orphaned: the app forgot renders the user could still hear.
+        try { fs.writeFileSync(path.join(OUT, `take-${id}.json`), JSON.stringify(take)) } catch {}
         myJob.status = 'done'
         push({ t: 'take', take })
         drainQueue()

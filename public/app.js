@@ -1004,11 +1004,26 @@
       })
   }
 
+  /**
+   * An <audio> that cannot reach the server says "no supported source was
+   * found", which reads as a broken file and is not. That message sent a real
+   * diagnosis down the wrong path, so the failure is asked what it actually is
+   * before it gets to say anything.
+   */
   function play (file) {
     if (!file) return
     if (playing === file && !audio.paused) { audio.pause(); playing = null; return renderTakes() }
-    audio.src = '/api/audio/out/' + encodeURIComponent(file)
-    audio.play().catch(function (e) { toast('Could not play that file: ' + e.message) })
+    var url = '/api/audio/out/' + encodeURIComponent(file)
+    audio.src = url
+    audio.play().catch(function (e) {
+      fetch(url, { method: 'HEAD' })
+        .then(function (r) {
+          if (r.ok) toast('That file will not decode: ' + e.message)
+          else if (r.status === 404) toast('That audio is gone from the out folder.')
+          else toast('The server answered ' + r.status + ' for that file.')
+        })
+        .catch(function () { toast('The desk server is not answering. Is it still running?') })
+    })
     playing = file
     renderTakes()
   }
