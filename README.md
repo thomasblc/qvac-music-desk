@@ -24,8 +24,16 @@ On first run the app has no model. The screen shows a banner with a **Download 3
 that fetches the four ACE-Step stages into `~/.qvac/models`, where every QVAC app shares them.
 Nothing is downloaded without that click.
 
-Requires **Node 20+**, **ffmpeg** on `PATH`, and roughly **8 GB of free RAM**. macOS, Linux and
-Windows on x64 or arm64.
+Then there are two ways to work, and they share one song sheet:
+
+- **Prompt**: write a sentence, press **Write the sheet**, and a local 4B model turns it into a
+  style, lyrics, tempo, key and length. Edit anything; an edited field is never overwritten.
+- **Manual**: pick a genre, a voice and an era, stack moods, instruments and production words,
+  and write the style yourself. The filter field on each row is how you find one of fifty-nine
+  instruments: type `guit`.
+
+Requires **Node 20+** and roughly **8 GB of free RAM**. macOS, Linux and Windows on x64 or arm64.
+**ffmpeg** on `PATH` is needed only to import your own audio (reference, cover, extend).
 
 ---
 
@@ -89,7 +97,7 @@ door gets a ceiling and the expert door becomes a second product.
   "task": "compose",        // compose | surprise | cover | repaint | extend | flow-edit | stem
   "sheet": { "caption": "...", "lyrics": "[Instrumental]", "instrumental": true,
              "bpm": 0, "keyscale": "", "timesignature": "", "vocalLanguage": "", "duration": 60 },
-  "prefer": "fast",         // fast | vocals, only meaningful for compose
+  "prefer": "fast",         // fast (turbo-q4) | detailed (sft, 50 steps) | vocals (MiniMax)
   "seed": 4242,
   "variations": 3,          // 1 to 4, rendered one at a time
   "formats": ["wav"],
@@ -127,34 +135,68 @@ door gets a ceiling and the expert door becomes a second product.
 
 ### How to prompt the music model
 
-From the ACE-Step authors' own guide, and this is most of the quality:
+From the ACE-Step 1.5 authors' own `docs/en/Tutorial.md` and their five published example tag
+sets. This is most of the quality, and this app enforces it in `lib/caption.mjs` rather than
+asking politely, because a rule that lives only in a system prompt is a rule that gets ignored.
 
-- **Caption**: prose, not a tag list. 15 to 25 words. Name a **genre** and at least **two
-  instruments**. Never put a tempo or a key in it: they have their own fields.
-- **A caption of pure mood produces a drum beat.** Measured. `"Mysterious and mystic, with a
-  haunting melody and ethereal textures"` named nothing that plays, so the model fell back on its
-  prior. Tempo lock went from **correlation 0.405** on that caption to **0.155** once the caption
-  named instruments and said `no percussion`.
-- **For anything atmospheric, send neither `bpm` nor `timesignature`.** A tempo asserts there is a
-  pulse and a time signature asserts the music is metred. Both invite percussion.
-- **Structure tags go in the lyrics, never in the caption.** That field is what the arrangement
-  stage reads. Measured: caption-only takes had a 0.18 to 1.05 dB loudness spread across the track,
+- **The style is a comma-separated keyword list, not prose.** Genre first, then two or three
+  moods, then four or five specific instruments, then the vocal character, then one or two
+  production words, then an era. Their own example:
+  `lo-fi hip-hop, boom bap, dusty drums, vinyl crackle, jazz sample, upright bass, rhodes piano,
+  muted trumpet, male vocals, rap vocals, laid-back, warm, 90s`
+- **5 to 12 keywords. Past 15 they dilute each other.** Prose spends the budget on words the model
+  cannot use: `Robotic Mexican folk, with mechanical guitar and electronic accordion, blending
+  traditional sounds with digital textures` is sixteen words and **four keywords**. Measured, same
+  seed, 30 s instrumental: a five-keyword style locked a tempo at correlation **0.709** that
+  nobody asked for; the same music as twelve keywords measured **0.253**.
+- **Specific beats vague.** "grand piano" over "piano", "fingerpicked acoustic guitar" over
+  "guitar". The vocabulary in `lib/vocab.mjs` is written that way on purpose.
+- **Never put tempo, key or time signature in the style.** They are parameters. `conformCaption()`
+  takes them out and says so on the take.
+- **Conflicts are the failure the authors name twice.** A lead vocal in an instrumental request,
+  or "no vocals" in a request that has lyrics. A wordless choir is not a conflict: their own
+  cinematic example carries `choir ooh` and `no vocals` together, so an instrumental take rewrites
+  "layered choir" to "choir ooh" instead of dropping it.
+- **One primary genre plus one modifier.** A third genre is dropped.
+- **A style of pure mood produces a drum beat.** It names nothing that plays, so the model falls
+  back on its prior. Say "no percussion" when there should be none.
+- **Structure tags go in the lyrics, never in the style.** That field is what the arrangement
+  stage reads. Measured: style-only takes had a 0.18 to 1.05 dB loudness spread across the track,
   which is one loop; structure tags reached 4.74 dB.
-- Lyrics: 6 to 10 syllables a line, about 90 to 140 words per 47 seconds.
-- Duration from the section count: two verses and two choruses need 120 s or more.
+- Lyrics: 6 to 10 syllables a line, about 90 to 140 words per 47 seconds. Duration from the
+  section count: two verses and two choruses need 120 s or more.
 
 The two engines use **different structure-tag vocabularies**, so `lib/vocab.mjs` rewrites them for
 whichever engine is about to read them and reports every change on the take.
+
+### Which generator runs, and why it matters
+
+Only the DiT changes between ACE-Step variants, and it is the quality axis. This app shipped for
+weeks always loading `turbo-q4`, which is the draft one, and the model got blamed for it.
+
+| Variant | Steps | CFG | Size | Compute here | What it is |
+|---|---|---|---|---|---|
+| `turbo-q4` | 8 | fixed at 1, so guidance does nothing | 1.4 GB | 0.12 to 0.20x | the default, for sketching |
+| `turbo-q8` | 8 | fixed at 1 | 2.5 GB | not measured | same schedule, better weights |
+| `sft` | 50 | works, authors' default 7.0 | 2.5 GB | 0.56 to 0.76x | the quality reference |
+
+The **Quality** control picks one: Fast is `turbo-q4`, Detailed is `sft` (or `turbo-q8` if that is
+what is on disk), Richer vocals switches engine to MiniMax-Music3. `pickDit()` in `server.js`.
+Detailed is disabled with a reason until the 2.5 GB file is fetched from the Info panel.
+
+Note that the addon refuses `inferenceSteps` and `cfgScale` for ACE-Step: the schedule is
+auto-tuned to the variant you loaded. `guidanceScale` is accepted and only means anything on
+`sft`.
 
 ### Measured performance on an M-series laptop
 
 Compute divided by audio length, lower is faster.
 
-| | ACE-Step 1.5 turbo-q4 | MiniMax-Music3 |
-|---|---|---|
-| Text to music | **0.12 to 0.29x** | 4.37x |
-| Reference, cover, repaint, extend, stems | the only engine that can | refused by name |
-| Output | 48 kHz stereo | 44.1 kHz stereo |
+| | ACE-Step turbo-q4 | ACE-Step sft, 50 steps | MiniMax-Music3 |
+|---|---|---|---|
+| Text to music | **0.12 to 0.29x** | 0.56 to 0.76x | 4.37x |
+| Reference, cover, repaint, extend, stems | yes | yes, except Flow-Edit | refused by name |
+| Output | 48 kHz stereo | 48 kHz stereo | 44.1 kHz stereo |
 
 So the engine is decided by the task, not asked as a question. `engineFor()` in `server.js`.
 
@@ -166,6 +208,15 @@ node engine/caps.cjs        # will fail: it needs bare
 bare engine/caps.cjs        # prints the capability probe as one JSON line
 npm start                   # then exercise the flow in a browser
 ```
+
+Two things that a static read of the code will not catch, and both have bitten:
+
+- **Click the primary flow.** Deleting an element breaks the code that wrote to it: a purge of
+  standing paragraphs removed a hint element, the handler behind **Write the sheet** still set its
+  `textContent`, and the button died silently while every screenshot still looked right.
+- **Measure the audio, do not describe it.** `test/sdk-release-lab/0.17/tempo.mjs` and
+  `structure.mjs` in the QVAC monorepo report tempo lock and loudness spread with no dependencies,
+  which is how the caption rules above were checked rather than asserted.
 
 There is no test suite. Verification here is a browser and the measurement scripts: an interrupted
 download, a truncated file, a mood-only caption and a queue of three takes are all real bugs this
@@ -179,7 +230,8 @@ Nothing is bundled and nothing downloads on its own.
 
 | What | Size | How you get it |
 |---|---|---|
-| ACE-Step 1.5, four stages | 3.3 GB | The in-app Download button, or the Info panel |
+| ACE-Step 1.5, four stages with the 8-step generator | 3.3 GB | The in-app Download button, or the Info panel |
+| The 50-step generator, for Quality: Detailed | 2.5 GB | The Info panel. Optional, and the one that raises quality |
 | Qwen3 4B, the brief expander | 2.5 GB | The Info panel. Optional: Manual mode and Surprise me work without it |
 | MiniMax-Music3 | 12.7 GB | **Yours to supply.** Not distributed by QVAC |
 
@@ -214,7 +266,8 @@ Every operation lives on the take it applies to, and none of them is called by i
   do. It is off, labelled, and unmeasured either way.
 - **Surprise me cannot honour a length.** Measured: asked for 8 s it produced 28.2 s, asked for
   16 s it produced 36.2 s, repeatably per seed. It promises a song, not a duration.
-- **No mp3 export.** The vendored ffmpeg has no LAME encoder. Thirteen other formats work.
+- **No mp3 export.** The addon's encoder does not list it. Thirteen other formats do work:
+  pcm, wav, flac, alac, aiff, caf, m4a, aac, opus, ogg, ac3, wma, mp2.
 - No test suite, no auth, no multi-user. It binds to localhost and is meant to.
 
 ## Layout
@@ -224,7 +277,8 @@ server.js              HTTP, model discovery, task routing, the render queue
 engine/worker.cjs      one render, under bare
 engine/caps.cjs        the capability probe, under bare
 lib/sheet.mjs          the brief expander and its guards
-lib/vocab.mjs          tag translation, presets, the cover-strength table
+lib/caption.mjs        the authors' caption rules, as a mechanism
+lib/vocab.mjs          the vocabulary, tag translation, the cover-strength table
 public/                index.html, app.js, styles.css
 docs/ux-review.html    why the app is shaped like this, with the measurements
 ```
