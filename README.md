@@ -286,4 +286,5 @@ docs/ux-review.html    why the app is shaped like this, with the measurements
 ## Licence
 
 Apache-2.0, see [LICENSE](LICENSE). Model weights are under their own licences and none of them
-are included here.
+are included here. The Geist typeface in `public/assets` is the SIL Open Font License 1.1 and
+carries its own licence file next to it.
